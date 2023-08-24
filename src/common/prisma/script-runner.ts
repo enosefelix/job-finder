@@ -8,6 +8,7 @@ import { AppUtilities } from '../../app.utilities';
 
 const scripts = [
   // 'db.migration',
+    "prisma.generate",
   //'npm.install',
   //'yarn.install',
   // 'ts.node',
