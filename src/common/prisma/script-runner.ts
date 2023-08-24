@@ -5,7 +5,7 @@ const scripts = [
   // 'db.migration',
   'yarn.install',
   // 'ts.node',
-  // 'db.seed',
+   'db.seed',
   // 'node',
   'db.migration.run',
   'db.generate',
