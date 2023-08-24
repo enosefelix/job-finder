@@ -12,6 +12,7 @@ async function bootstrap() {
   const environment = configService.get('environment');
   const appPort = configService.get('app.port');
   const appHost = configService.get('app.host');
+  console.log('🚀 ~ file: main.ts:15 ~ bootstrap ~ appHost:', appHost);
   const appHostname = configService.get('app.hostname');
 
   app.enableCors();
@@ -33,8 +34,6 @@ async function bootstrap() {
     initSwagger(app, appHost);
   }
 
-  initSwagger(app, appHost);
-
   app.useGlobalInterceptors(
     new RequestInterceptor(),
     new ResponseInterceptor(),
@@ -43,6 +42,7 @@ async function bootstrap() {
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
   );
 
+  initSwagger(appPort, appHostname);
   await app.listen(appPort, appHostname);
 }
 
