@@ -8,6 +8,7 @@ import { AppUtilities } from '../../app.utilities';
 
 const scripts = [
   // 'db.migration',
+  'npm.install',
   'yarn.install',
   // 'ts.node',
   // 'node',

@@ -123,13 +123,23 @@ export class AppUtilities {
     return hashedPassword;
   }
 
-  public static generateToken(): number[] {
+  public static generateToken(length: number): number[] {
     const token: number[] = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < length; i++) {
       const randomNumber = Math.floor(Math.random() * 10); // Generate a random number between 0 and 9
       token.push(randomNumber);
     }
     return token;
+  }
+
+  public static generateRandomString(length: number): string {
+    const characters =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    const charactersLength = characters.length;
+    for (let i = 0; i < length; i++)
+      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    return result;
   }
 
   public static async validator(

@@ -13,10 +13,6 @@ export class RequestInterceptor implements NestInterceptor {
     const { headers, body, query, url, method } = context
       .switchToHttp()
       .getRequest<Request>();
-    console.log(
-      '🚀 ~ file: request.interceptor.ts:16 ~ RequestInterceptor ~ intercept ~ context:',
-      context,
-    );
     // simple clean up
     const mHeaders = { ...headers };
     const mBody = { ...body };

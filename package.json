@@ -26,7 +26,8 @@
     "db.generate": "npx prisma generate --schema=./src/common/prisma/schema.prisma",
     "db.seed": "ts-node src/common/prisma/seed.ts",
     "yarn.install": "yarn install",
-    "ts.node": "yarn add ts-node@10.0.0"
+    "ts.node": "yarn add ts-node@10.0.0",
+    "npm.install": "npm install"
   },
   "dependencies": {
     "@faker-js/faker": "^8.0.2",
