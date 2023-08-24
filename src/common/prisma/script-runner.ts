@@ -13,7 +13,6 @@ const scripts = [
   // 'node',
   'db.migration.run',
   'db.generate',
-  // 'db.seed',
   // 'build',
 ];
 

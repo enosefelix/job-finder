@@ -1,10 +1,10 @@
-import { PrismaClient } from '.prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { roleSeed } from '../prisma/role.seed';
 import { ROLE_TYPE } from '../interfaces';
 import * as moment from 'moment';
 import { AppUtilities } from '../../app.utilities';
 
-const seedDatabase = async () => {
+async function seedDatabase() {
   const tenantPrisma = new PrismaClient();
   const promises = [];
 
@@ -13,13 +13,6 @@ const seedDatabase = async () => {
     const hashedPassword = (await AppUtilities.hasher('Admin@123')) as string;
 
     // Seed roles
-    promises.push(
-      tenantPrisma.role.createMany({
-        data: roleSeed,
-        skipDuplicates: true,
-      }),
-    );
-
     promises.push(
       tenantPrisma.role.createMany({
         data: roleSeed,
@@ -52,7 +45,7 @@ const seedDatabase = async () => {
     // Close the Prisma client connection
     await tenantPrisma.$disconnect();
   }
-};
+}
 
 // Call the async seed function
 seedDatabase();
