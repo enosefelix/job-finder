@@ -8,7 +8,7 @@
   "scripts": {
     "prebuild": "rimraf dist && yarn build-commands",
     "build": "nest build",
-    "build-commands": "yarn add ts-node && yarn build-prod && yarn db.seed && yarn add @nestjs/cli && yarn build",
+    "build-commands": "yarn add ts-node && yarn build-prod && yarn add @nestjs/cli && yarn build",
     "build-prod": "ts-node ./src/common/prisma/script-runner.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
