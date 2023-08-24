@@ -38,12 +38,14 @@ export class AdminService extends CrudService<
       include: { User: true },
     };
 
-    return this.findManyPaginate(args, {
+    const data = this.findManyPaginate(args, {
       cursor,
       direction,
       orderBy: orderBy || { createdAt: direction },
       size,
     });
+    console.log('🚀 ~ file: admin.service.ts:47 ~ data:', data);
+    return data;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
