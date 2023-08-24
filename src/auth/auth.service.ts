@@ -23,7 +23,6 @@ import { ForgotPasswordDto } from './dto/reset-password.dto';
 import { UpdatePasswordDto } from './dto/updatePassword.dto';
 import { VerifyTokenDto } from './dto/verify-token.dto';
 import { CacheService } from '../common/cache/cache.service';
-import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -162,6 +161,11 @@ export class AuthService {
           'Google signedup users cannot reset password',
         );
 
+      if (foundUser.id !== foundUser.id)
+        throw new UnauthorizedException(
+          'You are not authorized to perform this action',
+        );
+
       const sendMail = await this.mailerService.sendUpdateEmail(email);
 
       return sendMail;
@@ -173,32 +177,18 @@ export class AuthService {
   async verifyToken(dto: VerifyTokenDto): Promise<any> {
     const { token } = dto;
 
-    const getHashToken = await this.cacheService.get(token);
-    console.log(
-      '🚀 ~ file: auth.service.ts:177 ~ AuthService ~ verifyToken ~ getHashToken:',
-      getHashToken,
-    );
-    const tokenData = await this.cacheService.get(getHashToken);
-    console.log(
-      '🚀 ~ file: auth.service.ts:179 ~ AuthService ~ verifyToken ~ tokenData:',
-      tokenData,
-    );
+    const email = await this.cacheService.get(token);
 
-    if (!tokenData) throw new BadRequestException('Invalid token');
+    if (!email) throw new BadRequestException('Invalid token');
 
-    const { userId, temporarySecret } = tokenData;
-
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({ where: { email } });
 
     const currentDate = moment().toISOString();
-
-    if (user.profileId !== temporarySecret && user.id !== userId)
-      throw new BadRequestException('Invalid token');
 
     if (user.tokenExpiresIn.toISOString() < currentDate)
       throw new BadRequestException('Token has expired');
 
-    return user;
+    return `Valid Token`;
   }
 
   async resetPassword(dto: ForgotPasswordDto): Promise<any> {
