@@ -42,7 +42,7 @@ async function bootstrap() {
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
   );
 
-  initSwagger(appPort, appHostname);
+  initSwagger(app, appHost);
   await app.listen(appPort, appHostname);
 }
 
