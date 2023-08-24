@@ -1,0 +1,286 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASEURL")
+}
+
+enum UserStatus {
+  Active
+  Inactive
+  Suspended
+}
+
+enum Roles {
+  Admin
+  User
+}
+
+enum BillingCycle {
+  Monthly
+  Quarterly
+  Yearly
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum LanguageProficiency {
+  BASIC
+  CONVERSATIONAL
+  PROFICIENT
+  FLUENT
+  NATIVE
+}
+
+enum Category {
+  Hybrid
+  Onsite
+  Remote
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique() @db.VarChar
+  description String?  @db.VarChar
+  code        Roles    @unique() @default(User)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  createdBy   String?  @db.Uuid
+  updatedAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedBy   String?  @db.Uuid
+  users       User[]
+
+  @@map("role")
+}
+
+model User {
+  id                     String                   @id @default(uuid()) @db.Uuid
+  email                  String                   @unique @db.VarChar(50)
+  password               String                   @db.VarChar
+  googleId               String?                  @db.VarChar
+  roleId                 String?                  @db.Uuid
+  lastLogin              DateTime?                @db.Timestamptz(6)
+  lastLoginIp            String?                  @db.VarChar
+  status                 UserStatus?              @default(Active)
+  profileId              String?                  @db.Uuid
+  isSubscribed           Boolean                  @default(false)
+  token                  String?                  @db.VarChar
+  tokenExpiresIn         DateTime?                @db.Timestamptz(6)
+  subscriptionId         String?                  @unique @db.Uuid
+  stripeCustomerId       String?                  @db.VarChar
+  createdAt              DateTime                 @default(now()) @db.Timestamptz(6)
+  createdBy              String?                  @db.Uuid
+  updatedAt              DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedBy              String?                  @db.Uuid
+  Tags                   Tags[]                   @relation("TaggedUser")
+  TaggedBy               Tags[]                   @relation("TaggedByUser")
+  Bookmarks              Bookmark[]
+  JobListing             JobListing[]
+  JobListingApplications JobListingApplications[]
+  role                   Role?                    @relation(fields: [roleId], references: [id])
+  profile                Profile?
+  subscription           Subscription?
+
+  @@map("user")
+}
+
+model Subscription {
+  id               String       @id @default(uuid()) @db.Uuid
+  name             String       @unique @db.VarChar
+  userId           String?      @unique @db.Uuid
+  description      String       @db.VarChar
+  subscriptionType BillingCycle
+  price            Float        @db.DoublePrecision()
+  isActive         Boolean      @default(false)
+  createdAt        DateTime     @default(now()) @db.Timestamptz(6)
+  createdBy        String?      @db.Uuid
+  updatedAt        DateTime     @default(now()) @db.Timestamptz(6)
+  updatedBy        String?      @db.Uuid
+  user             User?        @relation(fields: [userId], references: [id])
+
+  @@map("subscription")
+}
+
+model Profile {
+  id                    String               @id @default(uuid()) @db.Uuid
+  firstName             String               @db.VarChar
+  lastName              String               @db.VarChar
+  email                 String?              @unique @db.VarChar
+  phone                 String?              @db.VarChar
+  profilePicUrl         String?              @db.VarChar
+  userId                String               @unique @db.Uuid
+  profileSummary        String?              @db.VarChar
+  employmentStatus      String?              @db.VarChar
+  industry              String?              @db.VarChar
+  githubLink            String?              @db.VarChar
+  linkedinLink          String?              @db.VarChar
+  twitterLink           String?              @db.VarChar
+  facebookLink          String?              @db.VarChar
+  personalPortfolioLink String?              @db.VarChar
+  createdAt             DateTime             @default(now()) @db.Timestamptz(6)
+  createdBy             String?              @db.Uuid
+  updatedAt             DateTime             @default(now()) @db.Timestamptz(6)
+  updatedBy             String?              @db.Uuid
+  User                  User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  skills                Skill[]
+  languages             Languages[]
+  workExperiences       WorkExperience[]
+  educationalHistory    EducationalHistory[]
+
+  @@map("profile")
+}
+
+model Bookmark {
+  id           String     @id @default(uuid()) @db.Uuid
+  userId       String     @db.Uuid
+  jobListingId String     @db.Uuid
+  createdAt    DateTime   @default(now()) @db.Timestamptz(6)
+  createdBy    String?    @db.Uuid
+  updatedAt    DateTime   @default(now()) @db.Timestamptz(6)
+  updatedBy    String?    @db.Uuid
+  user         User       @relation(fields: [userId], references: [id])
+  jobListing   JobListing @relation(fields: [jobListingId], references: [id])
+
+  @@map("bookmark")
+}
+
+model JobListing {
+  id              String                   @id @default(uuid()) @db.Uuid
+  title           String                   @db.VarChar
+  description     String                   @db.VarChar
+  approvedById    String?                  @db.Uuid
+  career          String                   @db.VarChar
+  category        Category
+  summary         String                   @db.VarChar
+  location        String                   @db.VarChar
+  industry        String                   @db.VarChar
+  jobPosition     String                   @db.VarChar
+  isApproved      Boolean                  @default(false)
+  isClosed        Boolean                  @default(false)
+  createdAt       DateTime                 @default(now()) @db.Timestamptz(6)
+  createdBy       String?                  @db.Uuid
+  updatedAt       DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedBy       String?                  @db.Uuid
+  taggedUsers     Tags[]
+  skills          String[]
+  Bookmark        Bookmark[]
+  languages       String[]
+  jobApplications JobListingApplications[]
+  approvedBy      User?                    @relation(fields: [approvedById], references: [id])
+
+  @@map("job_listing")
+}
+
+model Location {
+  id        String   @id @default(uuid()) @db.Uuid
+  countryId String   @db.Uuid
+  StateId   String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  createdBy String?  @db.Uuid
+  updatedAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedBy String?  @db.Uuid
+
+  @@map("location")
+}
+
+model JobListingApplications {
+  id           String     @id @default(uuid()) @db.Uuid
+  resume       String     @db.VarChar
+  coverLetter  String     @db.VarChar
+  availability String     @db.VarChar
+  userId       String     @db.Uuid
+  jobListingId String     @db.Uuid
+  createdAt    DateTime   @default(now()) @db.Timestamptz(6)
+  createdBy    String?    @db.Uuid
+  updatedAt    DateTime   @default(now()) @db.Timestamptz(6)
+  updatedBy    String?    @db.Uuid
+  user         User       @relation(fields: [userId], references: [id])
+  jobListing   JobListing @relation(fields: [jobListingId], references: [id])
+
+  @@map("job_listing_applications")
+}
+
+model WorkExperience {
+  id        String   @id @default(uuid()) @db.Uuid
+  position  String   @db.VarChar
+  startDate DateTime @db.Timestamptz(6)
+  endDate   DateTime @db.Timestamptz(6)
+  profileId String?  @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  createdBy String?  @db.Uuid
+  updatedAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedBy String?  @db.Uuid
+  Profile   Profile? @relation(fields: [profileId], references: [id])
+
+  @@map("work_experience")
+}
+
+model EducationalHistory {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar
+  startDate    DateTime @db.Timestamptz(6)
+  endDate      DateTime @db.Timestamptz(6)
+  degree       String   @db.VarChar
+  fieldOfStudy String   @db.VarChar
+  institution  String   @db.VarChar
+  profileId    String?  @db.Uuid
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  createdBy    String?  @db.Uuid
+  updatedAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedBy    String?  @db.Uuid
+  Profile      Profile? @relation(fields: [profileId], references: [id])
+
+  @@map("educational_history")
+}
+
+model Skill {
+  id                String     @id @default(uuid()) @db.Uuid
+  profileId         String?    @db.Uuid
+  jobListingId      String?    @db.Uuid
+  skillName         String     @db.VarChar
+  skillLevel        SkillLevel
+  yearsOfExperience Int        @db.Integer
+  createdAt         DateTime   @default(now()) @db.Timestamptz(6)
+  createdBy         String?    @db.Uuid
+  updatedAt         DateTime   @default(now()) @db.Timestamptz(6)
+  updatedBy         String?    @db.Uuid
+  Profile           Profile?   @relation(fields: [profileId], references: [id])
+
+  @@map("skill")
+}
+
+model Languages {
+  id           String              @id @default(uuid()) @db.Uuid
+  profileId    String?             @db.Uuid
+  jobListingId String?             @db.Uuid
+  languageName String              @db.VarChar
+  proficiency  LanguageProficiency
+  createdAt    DateTime            @default(now()) @db.Timestamptz(6)
+  createdBy    String?             @db.Uuid
+  updatedAt    DateTime            @default(now()) @db.Timestamptz(6)
+  updatedBy    String?             @db.Uuid
+  Profile      Profile?            @relation(fields: [profileId], references: [id])
+
+  @@map("languages")
+}
+
+model Tags {
+  id             String     @id @default(uuid()) @db.Uuid
+  taggedByUserId String     @db.Uuid
+  taggedUserId   String     @db.Uuid
+  jobListingId   String     @db.Uuid
+  jobListing     JobListing @relation(fields: [jobListingId], references: [id])
+  taggedBy       User       @relation("TaggedByUser", fields: [taggedByUserId], references: [id])
+  taggedUser     User       @relation("TaggedUser", fields: [taggedUserId], references: [id])
+
+  @@map("tags")
+}
