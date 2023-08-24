@@ -28,7 +28,7 @@ export class JobListingsService extends CrudService<
     size,
     ...dto
   }: JobListingFilterDto) {
-    const parsedQueryFilters = this.parseQueryFilter(dto, [
+    const parsedQueryFilters = await this.parseQueryFilter(dto, [
       'title',
       'industry',
       {
@@ -59,7 +59,7 @@ export class JobListingsService extends CrudService<
       include: { jobApplications: true },
     };
 
-    return this.findManyPaginate(args, {
+    return await this.findManyPaginate(args, {
       cursor,
       direction,
       orderBy: orderBy || { createdAt: direction },

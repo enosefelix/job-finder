@@ -24,7 +24,7 @@
     "db.migration.run": "npx prisma migrate deploy --schema=./src/common/prisma/schema.prisma",
     "db.generate": "npx prisma generate --schema=./src/common/prisma/schema.prisma",
     "db.seed": "ts-node src/common/prisma/seed.ts",
-    "npm.install": "npm install",
+    "yarn.install": "yarn install",
     "ts.node": "yarn add ts-node"
   },
   "dependencies": {

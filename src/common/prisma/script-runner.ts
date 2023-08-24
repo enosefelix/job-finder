@@ -3,7 +3,7 @@ import * as readline from 'readline';
 
 const scripts = [
   // 'db.migration',
-  'npm.install',
+  'yarn.install',
   // 'ts.node',
   // 'db.seed',
   // 'node',

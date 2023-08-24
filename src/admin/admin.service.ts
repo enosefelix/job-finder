@@ -24,7 +24,7 @@ export class AdminService extends CrudService<
     size,
     ...dto
   }: UsersFilterDto): Promise<User[]> {
-    const parsedQueryFilters = this.parseQueryFilter(dto, [
+    const parsedQueryFilters = await this.parseQueryFilter(dto, [
       'email',
       'firstName',
       'lastName',
@@ -38,7 +38,7 @@ export class AdminService extends CrudService<
       include: { User: true },
     };
 
-    const data = this.findManyPaginate(args, {
+    const data = await this.findManyPaginate(args, {
       cursor,
       direction,
       orderBy: orderBy || { createdAt: direction },
@@ -48,7 +48,6 @@ export class AdminService extends CrudService<
     return data;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   async getUserById(id: string): Promise<any> {
     const user = await this.prisma.user.findUnique({
       where: { id },
