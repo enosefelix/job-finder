@@ -1,17 +1,18 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
 import { IsAtLeastOneFileUploaded } from '../../common/decorators/file-upload.decorator';
 
 export class ApplyJobListingDto {
-  @ApiProperty({ type: 'string', format: 'binary' })
+  @ApiPropertyOptional({ type: 'string', format: 'binary' })
   @IsAtLeastOneFileUploaded()
+  @IsOptional()
   public resume?: Express.Multer.File;
 
-  @ApiProperty({ type: 'string', format: 'binary' })
+  @ApiPropertyOptional({ type: 'string', format: 'binary' })
   @IsOptional()
   public coverLetter?: Express.Multer.File;
 
   @ApiProperty()
   @IsString()
-  public availability?: string;
+  public availability: string;
 }

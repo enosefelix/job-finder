@@ -1,49 +1,82 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
-import { Category } from '../../common/interfaces';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { Category, ExperienceLevel, JobType } from '../../common/interfaces';
 
 export class CreateJobListingDto {
-  @ApiPropertyOptional()
+  @ApiProperty()
+  @IsNotEmpty()
   @IsString()
   title: string;
 
-  @ApiPropertyOptional()
+  @ApiProperty()
+  @IsNotEmpty()
   @IsString()
-  description: string;
+  companyName: string;
+
+  @ApiPropertyOptional()
+  @IsNotEmpty()
+  @IsString()
+  companyDetails: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  jobDescription: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  jobRequirements: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  role: string;
 
   @ApiPropertyOptional()
   @IsString()
-  career: string;
+  salary: string;
 
-  @ApiPropertyOptional()
-  @IsString()
-  summary: string;
+  @ApiProperty({
+    enum: ExperienceLevel,
+    description:
+      'Junior | MidLevel | Senior | EntryLevel | Internship | Associate | Principal',
+  })
+  @IsEnum(ExperienceLevel)
+  experienceLevel: ExperienceLevel;
 
-  @ApiPropertyOptional()
+  @ApiProperty({
+    enum: JobType,
+    description:
+      'FullTime | PartTime | Contract | Freelance | Internship | Temporary',
+  })
+  @IsEnum(JobType)
+  jobType: JobType;
+
+  @ApiProperty()
   @IsString()
   industry: string;
 
-  @ApiPropertyOptional()
+  @ApiProperty()
   @IsString()
   location: string;
 
-  @ApiPropertyOptional()
+  @ApiProperty({
+    description: 'English, Spanish',
+  })
   @IsString()
   languages: string;
 
-  @ApiPropertyOptional()
-  @IsString()
-  jobPosition: string;
-
-  @ApiPropertyOptional()
+  @ApiProperty({
+    description: 'Nodejs, MongoDB',
+  })
   @IsString()
   skills: string;
 
-  @IsOptional()
-  @ApiPropertyOptional({
+  @ApiProperty({
     enum: Category,
     description: 'Hybrid | Onsite | Remote',
   })
   @IsEnum(Category)
-  category?: Category;
+  category: Category;
 }

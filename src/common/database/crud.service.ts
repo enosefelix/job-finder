@@ -199,6 +199,22 @@ export abstract class CrudService<D extends Delegate, T extends CrudMapType> {
         })),
       };
     }
+    if (typeof term === 'object') {
+      term.map((term) => {
+        const parsedFilters = {
+          ...this.parseProps({ term }, querySchema),
+          ...this.parseOneToOne({ term }, querySchema),
+          ...this.parseOneToMany({ term }, querySchema),
+          ...this.parseFilterFunction({ term }, querySchema),
+        };
+        parsedTermFilters = {
+          OR: Object.entries(parsedFilters || {}).map(([key, val]) => ({
+            [key]: val,
+          })),
+        };
+      });
+    }
+
     return {
       ...parsedFilters,
       ...parsedTermFilters,

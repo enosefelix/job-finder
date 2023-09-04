@@ -3,7 +3,7 @@ import { PrismaService } from './common/prisma/prisma.service';
 import appConfig from './app.config';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './auth/jwt.strategy';
-import { JwtModule, JwtService } from '@nestjs/jwt';
+import { JwtService } from '@nestjs/jwt';
 import { JobListingsModule } from './job-listings/job-listings.module';
 import { AdminModule } from './admin/admin.module';
 import { MailerModule } from './mailer/mailer.module';
@@ -15,8 +15,9 @@ import { CacheModule as NestCacheModule } from '@nestjs/cache-manager';
 import { CacheService } from './common/cache/cache.service';
 import * as redisStore from 'cache-manager-redis-store';
 import { HealthController } from './health-check.controller';
-import { PassportModule } from '@nestjs/passport';
 import { MailerService } from './mailer/mailer.service';
+import { UserModule } from './user/user.module';
+import { ProfileModule } from './user/profile/profile.module';
 
 @Module({
   imports: [
@@ -63,6 +64,8 @@ import { MailerService } from './mailer/mailer.service';
       inject: [ConfigService],
     }),
     CacheModule.register({}),
+    UserModule,
+    ProfileModule,
   ],
   controllers: [HealthController],
   providers: [

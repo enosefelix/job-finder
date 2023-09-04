@@ -3,7 +3,6 @@ import {
   Body,
   Controller,
   Post,
-  UsePipes,
   ValidationPipe,
   UseGuards,
   Get,
@@ -23,11 +22,9 @@ import { GetUser } from '../common/decorators/get-user.decorator';
 import { ForgotPasswordDto } from './dto/reset-password.dto';
 import { UpdatePasswordDto } from './dto/updatePassword.dto';
 import { VerifyTokenDto } from './dto/verify-token.dto';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
-@ApiBearerAuth()
 @ApiTags(API_TAGS.AUTH)
-@UsePipes(new ValidationPipe())
+// @UsePipes(new ValidationPipe())
 @Controller()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -54,18 +51,17 @@ export class AuthController {
   }
 
   @Post('auth/verify-token')
-  async verifyToken(@Body(ValidationPipe) token: VerifyTokenDto): Promise<any> {
+  async verifyToken(@Body() token: VerifyTokenDto) {
     return this.authService.verifyToken(token);
   }
 
   @ApiResponseMeta({ message: 'Password Reset Successfully' })
   @Post('auth/reset-password')
-  async resetPasword(
-    @Body(ValidationPipe) dto: ForgotPasswordDto,
-  ): Promise<any> {
+  async resetPasword(@Body() dto: ForgotPasswordDto): Promise<any> {
     return this.authService.resetPassword(dto);
   }
 
+  @ApiBearerAuth()
   @ApiResponseMeta({ message: 'Password Updated Successfully' })
   @UseGuards(AuthGuard())
   @Patch('auth/change-password')
@@ -78,7 +74,7 @@ export class AuthController {
 
   @Get()
   @UseGuards(AuthGuard('google'))
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  // eslint-disable-next-line @typescript-eslint/no-empty-function, @typescript-eslint/no-unused-vars
   async googleAuth(@Req() req) {}
 
   @Get('/google/redirect')

@@ -7,6 +7,16 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import {
+  formatDistanceToNow,
+  differenceInSeconds,
+  differenceInCalendarISOWeekYears,
+  differenceInCalendarDays,
+  differenceInCalendarWeeks,
+  differenceInCalendarMonths,
+  differenceInCalendarYears,
+} from 'date-fns';
+import * as moment from 'moment';
 
 @Injectable()
 export class AppUtilities {
@@ -161,5 +171,227 @@ export class AppUtilities {
     encoding: BufferEncoding = 'base64',
   ): string {
     return Buffer.from(data, encoding).toString();
+  }
+
+  public static selectMultipleFields(fields: any[]): Record<string, true> {
+    return fields.reduce((selectObject, field) => {
+      selectObject[field] = true;
+      return selectObject;
+    }, {});
+  }
+
+  public static removeFields(fields: string[]): Record<string, true> {
+    return fields.reduce((selectObject, field) => {
+      selectObject[field] = true;
+      return selectObject;
+    }, {});
+  }
+
+  public static async addTimestamps(jobListings: any) {
+    try {
+      if (
+        Array.isArray(jobListings) &&
+        jobListings.every((item) => typeof item === 'object')
+      ) {
+        (jobListings as { pageEdges?: any[] })?.pageEdges?.map(
+          (jobListing: any) => {
+            console.log('kalnsd;anfdkl;amkldfnamlksa,;');
+
+            const timeStamp = moment(jobListing?.node?.createdAt).toDate();
+            console.log(
+              '🚀 ~ file: app.utilities.ts:201 ~ AppUtilities ~ addTimestamps ~ timeStamp:',
+              timeStamp,
+            );
+            const currentTime = moment().toDate();
+            const secondsAgo = differenceInSeconds(currentTime, timeStamp);
+            const minutesAgo = Math.floor(secondsAgo / 60);
+            const hoursAgo = Math.floor(secondsAgo / 3600);
+            const daysAgo = differenceInCalendarDays(currentTime, timeStamp);
+            const weeksAgo = Math.floor(daysAgo / 7);
+            const monthsAgo = differenceInCalendarMonths(
+              currentTime,
+              timeStamp,
+            );
+            const yearsAgo = differenceInCalendarYears(currentTime, timeStamp);
+
+            let timeStampText: string;
+
+            if (secondsAgo < 60) {
+              timeStampText = `${secondsAgo} second${
+                secondsAgo === 1 ? '' : 's'
+              } ago`;
+            } else if (secondsAgo < 3600) {
+              timeStampText = `${minutesAgo} minute${
+                minutesAgo === 1 ? '' : 's'
+              } ago`;
+            } else if (secondsAgo < 86400) {
+              timeStampText = `${hoursAgo} hour${
+                hoursAgo === 1 ? '' : 's'
+              } ago`;
+            } else if (daysAgo < 7) {
+              timeStampText = `${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
+            } else if (daysAgo < 30) {
+              timeStampText = `${weeksAgo} week${
+                weeksAgo === 1 ? '' : 's'
+              } ago`;
+            } else if (monthsAgo < 12) {
+              timeStampText = `${monthsAgo} month${
+                monthsAgo === 1 ? '' : 's'
+              } ago`;
+            } else {
+              timeStampText = `${yearsAgo} year${
+                yearsAgo === 1 ? '' : 's'
+              } ago`;
+            }
+
+            jobListing.node.timeStamp = timeStampText;
+          },
+        );
+      } else if (typeof jobListings === 'object') {
+        const pageEdges = await jobListings;
+        console.log(
+          '🚀 ~ file: app.utilities.ts:252 ~ AppUtilities ~ addTimestamps ~ pageEdges:',
+          pageEdges.pageEdges,
+        );
+        pageEdges.pageEdges.forEach((edge: any) => {
+          const jobListing = edge.node;
+          const timeStamp = moment(jobListing?.createdAt).toDate();
+          const currentTime = moment().toDate();
+          const secondsAgo = differenceInSeconds(currentTime, timeStamp);
+          const minutesAgo = Math.floor(secondsAgo / 60);
+          const hoursAgo = Math.floor(secondsAgo / 3600);
+          const daysAgo = differenceInCalendarDays(currentTime, timeStamp);
+          const weeksAgo = Math.floor(daysAgo / 7);
+          const monthsAgo = differenceInCalendarMonths(currentTime, timeStamp);
+          const yearsAgo = differenceInCalendarYears(currentTime, timeStamp);
+
+          let timeStampText: string;
+
+          if (secondsAgo < 60) {
+            timeStampText = `${secondsAgo} second${
+              secondsAgo === 1 ? '' : 's'
+            } ago`;
+          } else if (secondsAgo < 3600) {
+            timeStampText = `${minutesAgo} minute${
+              minutesAgo === 1 ? '' : 's'
+            } ago`;
+          } else if (secondsAgo < 86400) {
+            timeStampText = `${hoursAgo} hour${hoursAgo === 1 ? '' : 's'} ago`;
+          } else if (daysAgo < 7) {
+            timeStampText = `${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
+          } else if (daysAgo < 30) {
+            timeStampText = `${weeksAgo} week${weeksAgo === 1 ? '' : 's'} ago`;
+          } else if (monthsAgo < 12) {
+            timeStampText = `${monthsAgo} month${
+              monthsAgo === 1 ? '' : 's'
+            } ago`;
+          } else {
+            timeStampText = `${yearsAgo} year${yearsAgo === 1 ? '' : 's'} ago`;
+          }
+
+          jobListing.timeStamp = timeStampText;
+        });
+      } else {
+        console.error('jobListings is neither an array nor an object');
+        throw new BadRequestException(
+          'An error occured, if error persists contact Support',
+        );
+      }
+    } catch (error) {
+      console.error('Error while mapping jobListings:', error);
+      throw error;
+    }
+  }
+  public static async addTimestampBase(jobListings: any) {
+    console.log(jobListings);
+
+    if (
+      Array.isArray(jobListings) &&
+      jobListings.every((item) => typeof item === 'object')
+    ) {
+      try {
+        jobListings?.map((jobListing: any) => {
+          const timeStamp = moment(jobListing.createdAt).toDate();
+          const currentTime = moment().toDate();
+          const secondsAgo = differenceInSeconds(currentTime, timeStamp);
+          const minutesAgo = Math.floor(secondsAgo / 60);
+          const hoursAgo = Math.floor(secondsAgo / 3600);
+          const daysAgo = differenceInCalendarDays(currentTime, timeStamp);
+          const weeksAgo = Math.floor(daysAgo / 7);
+          const monthsAgo = differenceInCalendarMonths(currentTime, timeStamp);
+          const yearsAgo = differenceInCalendarYears(currentTime, timeStamp);
+
+          let timeStampText: string;
+
+          if (secondsAgo < 60) {
+            timeStampText = `${secondsAgo} second${
+              secondsAgo === 1 ? '' : 's'
+            } ago`;
+          } else if (secondsAgo < 3600) {
+            timeStampText = `${minutesAgo} minute${
+              minutesAgo === 1 ? '' : 's'
+            } ago`;
+          } else if (secondsAgo < 86400) {
+            timeStampText = `${hoursAgo} hour${hoursAgo === 1 ? '' : 's'} ago`;
+          } else if (daysAgo < 7) {
+            timeStampText = `${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
+          } else if (daysAgo < 30) {
+            timeStampText = `${weeksAgo} week${weeksAgo === 1 ? '' : 's'} ago`;
+          } else if (monthsAgo < 12) {
+            timeStampText = `${monthsAgo} month${
+              monthsAgo === 1 ? '' : 's'
+            } ago`;
+          } else {
+            timeStampText = `${yearsAgo} year${yearsAgo === 1 ? '' : 's'} ago`;
+          }
+          console.log(`${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`);
+
+          jobListing.timeStamp = timeStampText;
+        });
+      } catch (error) {
+        console.error('Error while mapping jobListings:', error);
+        throw error;
+      }
+    } else if (typeof jobListings === 'object') {
+      const timeStamp = moment(jobListings.createdAt).toDate();
+      const currentTime = moment().toDate();
+      const secondsAgo = differenceInSeconds(currentTime, timeStamp);
+      const minutesAgo = Math.floor(secondsAgo / 60);
+      const hoursAgo = Math.floor(secondsAgo / 3600);
+      const daysAgo = differenceInCalendarDays(currentTime, timeStamp);
+      const weeksAgo = Math.floor(daysAgo / 7);
+      const monthsAgo = differenceInCalendarMonths(currentTime, timeStamp);
+      const yearsAgo = differenceInCalendarYears(currentTime, timeStamp);
+
+      let timeStampText: string;
+
+      if (secondsAgo < 60) {
+        timeStampText = `${secondsAgo} second${
+          secondsAgo === 1 ? '' : 's'
+        } ago`;
+      } else if (secondsAgo < 3600) {
+        timeStampText = `${minutesAgo} minute${
+          minutesAgo === 1 ? '' : 's'
+        } ago`;
+      } else if (secondsAgo < 86400) {
+        timeStampText = `${hoursAgo} hour${hoursAgo === 1 ? '' : 's'} ago`;
+      } else if (daysAgo < 7) {
+        timeStampText = `${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
+      } else if (daysAgo < 30) {
+        timeStampText = `${weeksAgo} week${weeksAgo === 1 ? '' : 's'} ago`;
+      } else if (monthsAgo < 12) {
+        timeStampText = `${monthsAgo} month${monthsAgo === 1 ? '' : 's'} ago`;
+      } else {
+        timeStampText = `${yearsAgo} year${yearsAgo === 1 ? '' : 's'} ago`;
+      }
+      console.log(`${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`);
+
+      jobListings.timeStamp = timeStampText;
+    } else {
+      console.error('jobListings is neither an array nor an object');
+      throw new BadRequestException(
+        'An error occured, if error persists contact Support',
+      );
+    }
   }
 }

@@ -1,4 +1,9 @@
-import { CACHE_MANAGER, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  CACHE_MANAGER,
+  Inject,
+  Injectable,
+} from '@nestjs/common';
 import { Cache, CachingConfig } from 'cache-manager';
 
 @Injectable()
@@ -26,12 +31,16 @@ export class CacheService {
     cb: (error: any, result: any) => any,
     config?: CachingConfig,
   ): Promise<any> {
-    const data = await this.cache.wrap(key, cb, config);
-    if (!!data && config?.ttl && typeof config.ttl === 'number') {
-      this.set(key, data, config.ttl);
-    }
+    try {
+      const data = await this.cache.wrap(key, cb, config);
+      if (!!data && config?.ttl && typeof config.ttl === 'number') {
+        this.set(key, data, config.ttl);
+      }
 
-    return data;
+      return data;
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
   }
 
   async wrap2(key: string, cb: () => Promise<any>): Promise<any> {

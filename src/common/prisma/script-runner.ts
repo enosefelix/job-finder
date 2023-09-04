@@ -53,7 +53,7 @@ async function runScript(script) {
 }
 
 async function runScriptsSequentially() {
-  const rl = readline.createInterface({
+  readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });

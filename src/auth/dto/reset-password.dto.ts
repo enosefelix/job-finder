@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsNotEmpty,
+  IsOptional,
   IsString,
   Matches,
   MaxLength,
@@ -14,18 +15,18 @@ export class ForgotPasswordDto {
   token: string;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @MinLength(8)
   @MaxLength(20)
-  @Matches(/(?:(?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, {
+  @Matches(/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d]*$/, {
     message:
-      'Password is too weak! Must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number or special character.',
+      'Password is too weak! It must contain at least one uppercase letter, one lowercase letter, and one number.',
   })
-  newPassword: string;
+  newPassword?: string;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  confirmNewPassword: string;
+  confirmNewPassword?: string;
 }

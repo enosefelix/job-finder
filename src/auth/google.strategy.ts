@@ -2,7 +2,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { config } from 'dotenv';
 
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 
 config();
 
@@ -12,7 +12,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     super({
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_SECRET,
-      callbackURL: 'http://127.0.0.1:3001/google/redirect',
+      callbackURL: `${process.env.APP_HOST}/google/redirect`,
       scope: ['email', 'profile'],
     });
   }
@@ -23,14 +23,18 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     profile: any,
     done: VerifyCallback,
   ): Promise<any> {
-    const { name, emails, photos } = profile;
-    const user = {
-      email: emails[0].value,
-      firstName: name.givenName,
-      lastName: name.familyName,
-      picture: photos[0].value,
-      accessToken,
-    };
-    done(null, user);
+    try {
+      const { name, emails, photos } = profile;
+      const user = {
+        email: emails[0].value,
+        firstName: name.givenName,
+        lastName: name.familyName,
+        picture: photos[0].value,
+        accessToken,
+      };
+      done(null, user);
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
   }
 }

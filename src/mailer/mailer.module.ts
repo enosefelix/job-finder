@@ -24,7 +24,7 @@ import { CacheModule } from '@nestjs/cache-manager';
           maxConnections: 10,
         },
         defaults: {
-          from: `"No Reply" <no-reply@robot-mail.com>`,
+          from: '"no-reply" <no-reply@robot-mail.com>',
         },
       }),
       inject: [ConfigService],

@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { RequestInterceptor } from './common/interceptors/request.interceptor';
 import { ConfigService } from '@nestjs/config';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { ErrorsInterceptor } from './common/interceptors/errors.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -12,7 +13,6 @@ async function bootstrap() {
   const environment = configService.get('environment');
   const appPort = configService.get('app.port');
   const appHost = configService.get('app.host');
-  console.log('🚀 ~ file: main.ts:15 ~ bootstrap ~ appHost:', appHost);
   const appHostname = configService.get('app.hostname');
 
   app.enableCors();
@@ -37,12 +37,13 @@ async function bootstrap() {
   app.useGlobalInterceptors(
     new RequestInterceptor(),
     new ResponseInterceptor(),
+    new ErrorsInterceptor(),
   );
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
   );
 
-  initSwagger(app, appHost);
+  // initSwagger(app, appHost);
   await app.listen(appPort, appHostname);
 }
 

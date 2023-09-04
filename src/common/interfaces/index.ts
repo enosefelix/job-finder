@@ -1,7 +1,7 @@
 export enum USER_STATUS {
   ACTIVE = 'Active',
   INACTIVE = 'Inactive',
-  SIGNEDUP = 'SignedUp',
+  SUSPENDED = 'Suspended',
 }
 
 export enum BILLINGCYCLE {
@@ -11,18 +11,18 @@ export enum BILLINGCYCLE {
 }
 
 export enum SKILLLEVEL {
-  BEGINNER = 'BEGINNER',
-  INTERMEDIATE = 'INTERMEDIATE',
-  ADVANCED = 'ADVANCED',
-  EXPERT = 'EXPERT',
+  BEGINNER = 'Beginner',
+  INTERMEDIATE = 'Intermediate',
+  ADVANCED = 'Advanced',
+  EXPERT = 'Expert',
 }
 
 export enum LANGUAGE_PROFICIENCY {
-  BASIC = 'basic',
-  CONVERSATIONAL = 'conversational',
-  PROFICIENT = 'proficient',
-  FLUENT = 'fluent',
-  NATIVE = 'native',
+  BASIC = 'Basic',
+  CONVERSATIONAL = 'Conversational',
+  PROFICIENT = 'Proficient',
+  FLUENT = 'Fluent',
+  NATIVE = 'Native',
 }
 
 export enum ROLE_TYPE {
@@ -35,6 +35,8 @@ export enum API_TAGS {
   JOBS = 'Jobs',
   ADMIN = 'Admin',
   HEALTH = 'Health Check',
+  USER = 'User',
+  PROFILE = 'User Profile',
 }
 
 export enum Category {
@@ -43,9 +45,23 @@ export enum Category {
   REMOTE = 'Remote',
 }
 
-export enum FAILED_LOGIN_MSG {
-  CREDENTIALS_DONT_MATCH = 'Crendentials do not match any records',
-  INVALID_CREDENTIALS = 'Invalid Credentials',
+export enum JobType {
+  FULLTIME = 'FullTime',
+  PARTTIME = 'PartTime',
+  CONTRACT = 'Contract',
+  FREELANCE = 'Freelance',
+  INTERNSHIP = 'Internship',
+  TEMPORARY = 'Temporary',
+}
+
+export enum ExperienceLevel {
+  JUNIOR = 'Junior',
+  MIDLEVEL = 'MidLevel',
+  SENIOR = 'Senior',
+  ENTRYLEVEL = 'EntryLevel',
+  INTERNSHIP = 'Internship',
+  ASSOCIATE = 'Associate',
+  PRINCIPAL = 'Principal',
 }
 
 export enum SORT_DIRECTION {
@@ -59,3 +75,44 @@ export enum ResourceType {
   Raw = 'raw',
   Video = 'video',
 }
+
+export enum JOB_LISTING_STATUS {
+  PENDING = 'Pending',
+  APPROVED = 'Approved',
+  REJECTED = 'Rejected',
+}
+
+export enum AUTH_ERROR_MSGS {
+  USER_NOT_FOUND = 'User not found',
+  CREDENTIALS_DONT_MATCH = 'Crendentials do not match any records',
+  INVALID_CREDENTIALS = 'Invalid Credentials',
+  GOOGLE_LOGIN_ERROR = 'You signed up with Google. Please use Google login.',
+  ALREADY_EXIST = 'User already exists, login',
+  GOOGLE_ALREDY_EXISTS = 'User alreay exists, login with Google',
+  PASSWORD_MATCH = 'Passwords do not match',
+  GOOGLE_SIGNUP_ERROR = 'You You signed up with Google. Please use Google login.',
+  GOOGLE_CHANGE_PASS_ERROR = `Google SignedUp user's cannot change password`,
+  SUSPENDED_ACCOUNT = 'Your account has been suspended, if you think this is a mistake, contact support',
+  GOOGLE_CANNOT_RESET = 'Google signedUp users cannot reset password',
+  FORBIDDEN = 'You cannot perform this action',
+  INVALID_TOKEN = 'Invalid Token',
+  EXPIRED_TOKEN = 'Token has expired',
+  VALID_TOKEN = 'Valid Token',
+  INVALID_OLD_PASSWORD = 'Invalid old password',
+  SAME_PASSWORD_ERROR = 'New and old password cannot be the same',
+}
+
+export enum JOB_LISTING_ERROR {
+  JOB_NOT_FOUND = 'Job Listing not found',
+}
+
+export enum JOB_APPLICATION_ERORR {
+  JOB_APPLICATION = 'Job Listing Application not found',
+  NO_JOBS_FOUND = 'No Job Application found',
+}
+
+export enum DATA_NOT_FOUND {
+  NOT_FOUND = 'Data not found',
+}
+
+export enum ADMIN_ERROR_MSGS {}
