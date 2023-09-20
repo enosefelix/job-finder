@@ -13,18 +13,16 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiConsumes, ApiTags, ApiBody } from '@nestjs/swagger';
 import { User } from '@prisma/client';
-import { GetQuery, GetUser } from 'src/common/decorators/get-user.decorator';
-import { ApiResponseMeta } from 'src/common/decorators/response.decorator';
-import { API_TAGS } from 'src/common/interfaces';
+import { GetUser } from '../../common/decorators/get-user.decorator';
+import { ApiResponseMeta } from '../../common/decorators/response.decorator';
+import { API_TAGS } from '../../common/interfaces';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { SkillDto } from '../dto/skill.dto';
 import { EducationHistDto } from '../dto/educational-history.dto';
 import { LanguagesDto } from '../dto/languages.dto';
 import { UserService } from '../user.service';
-import {
-  FileFieldsInterceptor,
-  FileInterceptor,
-} from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { WorkExperienceDto } from '../dto/work-experience.dto';
 
 @ApiTags(API_TAGS.PROFILE)
 @ApiBearerAuth()
@@ -74,6 +72,34 @@ export class ProfileController {
   @UseGuards(AuthGuard())
   async deleteSkill(@Query('id') id: string, @GetUser() user: User) {
     return this.userService.deleteSkill(id, user);
+  }
+
+  @ApiResponseMeta({ message: 'Work Experience Added Successfully' })
+  @Post('/work-experience/create')
+  @UseGuards(AuthGuard())
+  async addWorkExperience(
+    @Body() dto: WorkExperienceDto,
+    @GetUser() user: User,
+  ) {
+    return this.userService.addWorkExperiences(dto, user);
+  }
+
+  @ApiResponseMeta({ message: 'Work Experience Updated Successfully' })
+  @Patch('/work-experience/:id/edit')
+  @UseGuards(AuthGuard())
+  async editWorkExperience(
+    @Query('id') id: string,
+    @Body() dto: WorkExperienceDto,
+    @GetUser() user: User,
+  ) {
+    return this.userService.editWorkExperiences(id, dto, user);
+  }
+
+  @ApiResponseMeta({ message: 'Work Experience Deleted Successfully' })
+  @Delete('/work-experience/:id/delete')
+  @UseGuards(AuthGuard())
+  async deleteWorkExperience(@Query('id') id: string, @GetUser() user: User) {
+    return this.userService.deleteWorkExperiences(id, user);
   }
 
   @ApiResponseMeta({ message: 'Education Added Successfully' })

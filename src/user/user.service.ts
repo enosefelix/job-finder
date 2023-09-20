@@ -5,14 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { User } from '@prisma/client';
-import { PrismaService } from 'src/common/prisma/prisma.service';
-import { CreateJobListingDto } from 'src/job-listings/dto/create-job-listing.dto';
-import { UpdateJobListingDto } from 'src/job-listings/dto/edit-job.dto';
-import { JobListingFilterDto } from 'src/job-listings/dto/job-listing-filter.dto';
-import { JobListingsService } from 'src/job-listings/job-listings.service';
+import { PrismaService } from '../common/prisma/prisma.service';
+import { CreateJobListingDto } from '../job-listings/dto/create-job-listing.dto';
+import { UpdateJobListingDto } from '../job-listings/dto/edit-job.dto';
+import { JobListingFilterDto } from '../job-listings/dto/job-listing-filter.dto';
+import { JobListingsService } from '../job-listings/job-listings.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { SkillDto } from './dto/skill.dto';
-import * as moment from 'moment';
 import { EducationHistDto } from './dto/educational-history.dto';
 import { WorkExperienceDto } from './dto/work-experience.dto';
 import { LanguagesDto } from './dto/languages.dto';
@@ -23,9 +22,10 @@ import {
   JOB_APPLICATION_ERORR,
   JOB_LISTING_ERROR,
   JOB_LISTING_STATUS,
-} from 'src/common/interfaces';
-import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
-import { AppUtilities } from 'src/app.utilities';
+} from '../common/interfaces';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { AppUtilities } from '../app.utilities';
+import { CertificationsDto } from './dto/certifications.dto';
 
 @Injectable()
 export class UserService {
@@ -36,15 +36,11 @@ export class UserService {
   ) {}
 
   async createJobListing(dto: CreateJobListingDto, user: User) {
-    return await this.jobListingService.createJobListing(false, dto, user);
+    return await this.jobListingService.createJobListing(dto, user);
   }
 
   async viewMyJobListings(dto: JobListingFilterDto, user: User) {
-    return await this.jobListingService.getAllUserJobListings(
-      'false',
-      dto,
-      user,
-    );
+    return await this.jobListingService.getAllUserJobListings(dto, user);
   }
 
   async viewJobListing(id: string, user: User) {
@@ -62,7 +58,7 @@ export class UserService {
   }
 
   async editJobListing(id: string, dto: UpdateJobListingDto, user: User) {
-    return await this.jobListingService.updateJobListing(false, id, dto, user);
+    return await this.jobListingService.updateJobListing(id, dto, user);
   }
 
   async deleteJobListing(id: string, user: User) {
@@ -148,7 +144,6 @@ export class UserService {
         data: {
           ...dto,
           profilePicUrl,
-          updatedAt: moment().toISOString(),
           updatedBy: user.id,
         },
       });
@@ -157,6 +152,29 @@ export class UserService {
     } catch (error) {
       throw new BadRequestException(error.message);
     }
+  }
+
+  async uploadProfilePic(profilePic: Express.Multer.File, user: User) {
+    const uploadProfilePic: any = profilePic
+      ? await this.cloudinaryService.uploadImage(profilePic).catch(() => {
+          throw new BadRequestException('Invalid file type.');
+        })
+      : null;
+    const profilePicUrl = uploadProfilePic?.secure_url || '';
+
+    const foundUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+    });
+
+    if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+
+    const updateProfile = await this.prisma.profile.update({
+      where: { userId: user.id },
+      data: {
+        profilePicUrl,
+        updatedBy: user.id,
+      },
+    });
   }
 
   async addSkill(dto: SkillDto, user: User) {
@@ -170,7 +188,7 @@ export class UserService {
     return await this.prisma.skill.create({
       data: {
         ...dto,
-        Profile: { connect: { userId: user.id } },
+        profile: { connect: { userId: user.id } },
         createdBy: user.id,
       },
     });
@@ -196,7 +214,6 @@ export class UserService {
       where: { id },
       data: {
         ...dto,
-        updatedAt: moment().toISOString(),
         updatedBy: user.id,
       },
     });
@@ -237,7 +254,7 @@ export class UserService {
       data: {
         ...dto,
         createdBy: user.id,
-        Profile: { connect: { userId: user.id } },
+        profile: { connect: { userId: user.id } },
       },
     });
 
@@ -264,7 +281,6 @@ export class UserService {
       where: { id },
       data: {
         ...dto,
-        updatedAt: moment().toISOString(),
         updatedBy: user.id,
       },
     });
@@ -291,7 +307,7 @@ export class UserService {
     });
   }
 
-  async addWorkExperiences(id: string, dto: WorkExperienceDto, user: User) {
+  async addWorkExperiences(dto: WorkExperienceDto, user: User) {
     const foundUser = await this.prisma.user.findUnique({
       where: { id: user.id },
     });
@@ -302,7 +318,7 @@ export class UserService {
       data: {
         ...dto,
         createdBy: user.id,
-        Profile: { connect: { userId: user.id } },
+        profile: { connect: { userId: user.id } },
       },
     });
 
@@ -329,7 +345,6 @@ export class UserService {
       where: { id },
       data: {
         ...dto,
-        updatedAt: moment().toISOString(),
         updatedBy: user.id,
       },
     });
@@ -391,13 +406,12 @@ export class UserService {
       where: { id },
       data: {
         ...dto,
-        updatedAt: moment().toISOString(),
         updatedBy: user.id,
       },
     });
   }
 
-  async deleteLanguages(id, user: User) {
+  async deleteLanguages(id: string, user: User) {
     const foundUser = await this.prisma.user.findUnique({
       where: { id: user.id },
     });
@@ -414,6 +428,67 @@ export class UserService {
       throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
     return await this.prisma.languages.delete({
+      where: { id },
+    });
+  }
+
+  async addCertifications(dto: CertificationsDto, user: User) {
+    const foundUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+    });
+
+    if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+
+    return await this.prisma.certification.create({
+      data: {
+        ...dto,
+        createdBy: user.id,
+      },
+    });
+  }
+
+  async editCertification(id: string, dto: CertificationsDto, user: User) {
+    const foundUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+    });
+
+    if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+
+    const certification = await this.prisma.certification.findFirst({
+      where: { id, createdBy: user.id },
+    });
+
+    if (!certification) throw new NotFoundException(DATA_NOT_FOUND.NOT_FOUND);
+
+    if (certification.createdBy !== user.id)
+      throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
+
+    return await this.prisma.certification.update({
+      where: { id },
+      data: {
+        ...dto,
+        updatedBy: user.id,
+      },
+    });
+  }
+
+  async deleteCertification(id: string, user: User) {
+    const foundUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+    });
+
+    if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+
+    const certification = await this.prisma.certification.findFirst({
+      where: { id, createdBy: user.id },
+    });
+
+    if (!certification) throw new NotFoundException(DATA_NOT_FOUND.NOT_FOUND);
+
+    if (certification.createdBy !== user.id)
+      throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
+
+    return await this.prisma.certification.delete({
       where: { id },
     });
   }

@@ -13,16 +13,16 @@ import {
 import { UserService } from './user.service';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
-import { JobListingFilterDto } from 'src/job-listings/dto/job-listing-filter.dto';
-import { GetQuery, GetUser } from 'src/common/decorators/get-user.decorator';
+import { JobListingFilterDto } from '../job-listings/dto/job-listing-filter.dto';
+import { GetQuery, GetUser } from '../common/decorators/get-user.decorator';
 import { User } from '@prisma/client';
-import { CreateJobListingDto } from 'src/job-listings/dto/create-job-listing.dto';
-import { ApiResponseMeta } from 'src/common/decorators/response.decorator';
+import { CreateJobListingDto } from '../job-listings/dto/create-job-listing.dto';
+import { ApiResponseMeta } from '../common/decorators/response.decorator';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { ApplyJobListingDto } from 'src/job-listings/dto/apply-joblisting.dto';
-import { UpdateJobListingDto } from 'src/job-listings/dto/edit-job.dto';
-import { API_TAGS } from 'src/common/interfaces';
-import { JobListingsService } from 'src/job-listings/job-listings.service';
+import { ApplyJobListingDto } from '../job-listings/dto/apply-joblisting.dto';
+import { UpdateJobListingDto } from '../job-listings/dto/edit-job.dto';
+import { API_TAGS } from '../common/interfaces';
+import { JobListingsService } from '../job-listings/job-listings.service';
 
 @ApiTags(API_TAGS.USER)
 @ApiBearerAuth()

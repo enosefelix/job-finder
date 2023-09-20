@@ -13,7 +13,12 @@ export class SignupDto {
   public lastName: string;
 
   @ApiProperty()
-  @IsEmail()
+  @IsEmail(
+    {},
+    {
+      message: 'Please enter a valid email address',
+    },
+  )
   @IsNotEmpty()
   public email: string;
 

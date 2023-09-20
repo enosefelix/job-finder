@@ -49,7 +49,7 @@ async function seedDatabase() {
       },
     });
 
-    await Promise.all([promises]);
+    await Promise.all(promises);
   } catch (error) {
     console.error('An error occurred:', error);
   } finally {

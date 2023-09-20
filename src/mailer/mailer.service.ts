@@ -18,6 +18,10 @@ export class MailerService {
       const generateToken = AppUtilities.generateToken(6);
 
       const token = generateToken.join('');
+      console.log(
+        '🚀 ~ file: mailer.service.ts:21 ~ MailerService ~ sendUpdateEmail ~ token:',
+        token,
+      );
 
       const foundUser = await this.prisma.user.findUnique({
         where: { email },
@@ -32,7 +36,6 @@ export class MailerService {
         data: {
           tokenExpiresIn: moment().add(tokenExpires, 'minutes').toDate(),
           token: hashedToken,
-          updatedAt: moment().toISOString(),
         },
       });
 

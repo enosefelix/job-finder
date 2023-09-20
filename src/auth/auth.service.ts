@@ -83,12 +83,12 @@ export class AuthService {
         },
       });
 
-      const pwd = 'password';
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [pwd]: _, ...usr } = user;
+      const properties = AppUtilities.extractProperties(user);
+
+      const { rest } = properties;
 
       return {
-        usr,
+        user: rest,
       };
     } catch (error) {
       throw new BadRequestException(error.message);
@@ -138,20 +138,19 @@ export class AuthService {
         data: {
           lastLogin: currentDate,
           lastLoginIp: ip,
-          updatedAt: moment().toISOString(),
         },
+        include: { profile: { select: { firstName: true, lastName: true } } },
       });
 
-      const pwd = 'password';
-      const tkn = 'token';
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [pwd]: _, [tkn]: __, ...usr } = updatedUser;
+      const properties = AppUtilities.extractProperties(updatedUser);
+
+      const { rest } = properties;
 
       return {
         accessToken,
         refreshToken,
         user: {
-          ...usr,
+          ...rest,
         },
       };
     } catch (e) {
@@ -243,7 +242,6 @@ export class AuthService {
         where: { email },
         data: {
           password: hashedPassword,
-          updatedAt: moment().toISOString(),
           updatedBy: user.id,
           token: null,
           tokenExpiresIn: null,
@@ -252,11 +250,13 @@ export class AuthService {
 
       await this.cacheService.remove(token);
 
-      const pwd = 'password';
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [pwd]: _, ...usr } = updatedPassword;
+      const properties = AppUtilities.extractProperties(updatedPassword);
 
-      return usr;
+      const { rest } = properties;
+
+      return {
+        user: rest,
+      };
     } catch (error) {
       throw new BadRequestException(error.message);
     }
@@ -292,16 +292,17 @@ export class AuthService {
         where: { id: user.id },
         data: {
           password: hashedPassword,
-          updatedAt: moment().toISOString(),
           updatedBy: user.id,
         },
       });
 
-      const pwd = 'password';
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [pwd]: _, ...usr } = updatedPassword;
+      const properties = AppUtilities.extractProperties(updatedPassword);
 
-      return usr;
+      const { rest } = properties;
+
+      return {
+        user: rest,
+      };
     } catch (error) {
       throw new BadRequestException(error.message);
     }
@@ -344,13 +345,12 @@ export class AuthService {
           },
         });
 
-        const pwd = 'password';
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { [pwd]: _, ...usr } = newUser;
+        const properties = AppUtilities.extractProperties(newUser);
+
+        const { rest } = properties;
 
         return {
-          message: 'User information from google',
-          user: usr,
+          user: rest,
         };
       }
 
@@ -372,12 +372,12 @@ export class AuthService {
         },
       });
 
-      const pwd = 'password';
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [pwd]: _, ...usr } = updatedUser;
+      const properties = AppUtilities.extractProperties(updatedUser);
+
+      const { rest } = properties;
 
       return {
-        ...usr,
+        ...rest,
         accessToken: token,
         refreshToken,
       };

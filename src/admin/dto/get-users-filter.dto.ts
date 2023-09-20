@@ -1,7 +1,7 @@
 import { ApiHideProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { PaginationSearchOptionsDto } from '../../common/interfaces/pagination-search-options.dto';
-import { USER_STATUS } from 'src/common/interfaces';
+import { USER_STATUS } from '../../common/interfaces';
 
 export class UsersFilterDto extends PaginationSearchOptionsDto {
   @ApiHideProperty()

@@ -80,7 +80,7 @@ model Role {
   code        Roles    @unique() @default(User)
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   createdBy   String?  @db.Uuid
-  updatedAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   updatedBy   String?  @db.Uuid
   users       User[]
 
@@ -93,7 +93,7 @@ model Comment {
   userId       String     @db.Uuid
   jobListingId String     @db.Uuid
   createdAt    DateTime   @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
   user         User       @relation(fields: [userId], references: [id])
   jobListing   JobListing @relation(fields: [jobListingId], references: [id])
 }
@@ -115,17 +115,17 @@ model User {
   stripeCustomerId       String?                  @db.VarChar
   createdAt              DateTime                 @default(now()) @db.Timestamptz(6)
   createdBy              String?                  @db.Uuid
-  updatedAt              DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime                 @default(now()) @updatedAt @db.Timestamptz(6)
   updatedBy              String?                  @db.Uuid
   Tags                   Tags[]                   @relation("TaggedUser")
   TaggedBy               Tags[]                   @relation("TaggedByUser")
-  Bookmarks              Bookmark[]
-  JobListing             JobListing[]
-  JobListingApplications JobListingApplications[]
+  bookmarks              Bookmark[]
+  jobListing             JobListing[]
+  jobListingApplications JobListingApplications[]
   role                   Role?                    @relation(fields: [roleId], references: [id])
   profile                Profile?
   subscription           Subscription?
-  Comment                Comment[]
+  comment                Comment[]
 
   @@map("user")
 }
@@ -140,7 +140,7 @@ model Subscription {
   isActive         Boolean      @default(false)
   createdAt        DateTime     @default(now()) @db.Timestamptz(6)
   createdBy        String?      @db.Uuid
-  updatedAt        DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime     @default(now()) @updatedAt @db.Timestamptz(6)
   updatedBy        String?      @db.Uuid
   user             User?        @relation(fields: [userId], references: [id])
 
@@ -156,8 +156,6 @@ model Profile {
   profilePicUrl         String?              @db.VarChar
   userId                String               @unique @db.Uuid
   profileSummary        String?              @db.VarChar
-  employmentStatus      String?              @db.VarChar
-  industry              String?              @db.VarChar
   githubLink            String?              @db.VarChar
   linkedinLink          String?              @db.VarChar
   twitterLink           String?              @db.VarChar
@@ -165,13 +163,15 @@ model Profile {
   personalPortfolioLink String?              @db.VarChar
   createdAt             DateTime             @default(now()) @db.Timestamptz(6)
   createdBy             String?              @db.Uuid
-  updatedAt             DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
   updatedBy             String?              @db.Uuid
   User                  User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   skills                Skill[]
   languages             Languages[]
   workExperiences       WorkExperience[]
   educationalHistory    EducationalHistory[]
+  Certifications        Certification[]
+  Resumes               Resume[]
 
   @@map("profile")
 }
@@ -182,7 +182,7 @@ model Bookmark {
   jobListingId String     @db.Uuid
   createdAt    DateTime   @default(now()) @db.Timestamptz(6)
   createdBy    String?    @db.Uuid
-  updatedAt    DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
   updatedBy    String?    @db.Uuid
   user         User       @relation(fields: [userId], references: [id])
   jobListing   JobListing @relation(fields: [jobListingId], references: [id])
@@ -191,33 +191,32 @@ model Bookmark {
 }
 
 model JobListing {
-  id              String                   @id @default(uuid()) @db.Uuid
-  title           String                   @db.VarChar
-  companyName     String                   @db.VarChar
-  jobDescription  String                   @db.VarChar
-  approvedById    String?                  @db.Uuid
-  jobRequirements String                   @db.VarChar
-  category        Category
-  role            String                   @db.VarChar
-  salary          String                   @db.VarChar
-  experienceLevel ExperienceLevel
-  location        String                   @db.VarChar
-  industry        String                   @db.VarChar
-  companyDetails  String                   @db.VarChar
-  jobType         JobType
-  status          ApprovalStatus           @default(Pending)
-  isClosed        Boolean                  @default(false)
-  createdAt       DateTime                 @default(now()) @db.Timestamptz(6)
-  createdBy       String?                  @db.Uuid
-  updatedAt       DateTime                 @default(now()) @db.Timestamptz(6)
-  updatedBy       String?                  @db.Uuid
-  taggedUsers     Tags[]
-  skills          String[]
-  Bookmark        Bookmark[]
-  languages       String[]
-  jobApplications JobListingApplications[]
-  approvedBy      User?                    @relation(fields: [approvedById], references: [id])
-  comments        Comment[]
+  id                  String                   @id @default(uuid()) @db.Uuid
+  title               String                   @db.VarChar
+  companyName         String                   @db.VarChar
+  jobResponsibilities String[]                 @db.VarChar
+  approvedById        String?                  @db.Uuid
+  jobRequirements     String                   @db.VarChar
+  category            Category
+  salary              String                   @db.VarChar
+  experienceLevel     ExperienceLevel
+  location            String                   @db.VarChar
+  industry            String                   @db.VarChar
+  companyDetails      String                   @db.VarChar
+  jobType             JobType
+  status              ApprovalStatus           @default(Pending)
+  isClosed            Boolean                  @default(false)
+  createdAt           DateTime                 @default(now()) @db.Timestamptz(6)
+  createdBy           String?                  @db.Uuid
+  updatedAt           DateTime                 @default(now()) @updatedAt @db.Timestamptz(6)
+  updatedBy           String?                  @db.Uuid
+  taggedUsers         Tags[]
+  skills              String[]
+  bookmarks           Bookmark[]
+  languages           String[]
+  jobApplications     JobListingApplications[]
+  approvedBy          User?                    @relation(fields: [approvedById], references: [id])
+  comments            Comment[]
 
   @@map("job_listing")
 }
@@ -225,10 +224,10 @@ model JobListing {
 model Location {
   id        String   @id @default(uuid()) @db.Uuid
   countryId String   @db.Uuid
-  StateId   String   @db.Uuid
+  stateId   String   @db.Uuid
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   createdBy String?  @db.Uuid
-  updatedAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   updatedBy String?  @db.Uuid
 
   @@map("location")
@@ -243,7 +242,7 @@ model JobListingApplications {
   jobListingId String     @db.Uuid
   createdAt    DateTime   @default(now()) @db.Timestamptz(6)
   createdBy    String?    @db.Uuid
-  updatedAt    DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
   updatedBy    String?    @db.Uuid
   user         User       @relation(fields: [userId], references: [id])
   jobListing   JobListing @relation(fields: [jobListingId], references: [id])
@@ -252,33 +251,68 @@ model JobListingApplications {
 }
 
 model WorkExperience {
-  id        String   @id @default(uuid()) @db.Uuid
-  position  String   @db.VarChar
-  startDate String   @db.VarChar
-  endDate   String   @db.VarChar
-  profileId String?  @db.Uuid
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  createdBy String?  @db.Uuid
-  updatedAt DateTime @default(now()) @db.Timestamptz(6)
-  updatedBy String?  @db.Uuid
-  Profile   Profile? @relation(fields: [profileId], references: [id])
+  id             String   @id @default(uuid()) @db.Uuid
+  position       String   @db.VarChar
+  organization   String   @db.VarChar
+  state          String   @db.VarChar
+  country        String   @db.VarChar
+  startDate      String   @db.VarChar
+  endDate        String   @db.VarChar
+  jobDescription String[] @db.VarChar
+  jobType        JobType
+  profileId      String?  @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  createdBy      String?  @db.Uuid
+  updatedAt      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  updatedBy      String?  @db.Uuid
+  profile        Profile? @relation(fields: [profileId], references: [id])
 
   @@map("work_experience")
 }
 
-model EducationalHistory {
+model Certification {
   id           String   @id @default(uuid()) @db.Uuid
-  startDate    String   @db.VarChar
-  endDate      String   @db.VarChar
-  degree       String   @db.VarChar
-  fieldOfStudy String?  @db.VarChar
-  institution  String   @db.VarChar
+  name         String?  @db.VarChar
+  organization String   @db.VarChar
+  yearIssued   String   @db.VarChar
+  expiryYear   String   @db.VarChar
   profileId    String?  @db.Uuid
   createdAt    DateTime @default(now()) @db.Timestamptz(6)
   createdBy    String?  @db.Uuid
-  updatedAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   updatedBy    String?  @db.Uuid
-  Profile      Profile? @relation(fields: [profileId], references: [id])
+  profile      Profile? @relation(fields: [profileId], references: [id])
+
+  @@map("certifications")
+}
+
+model Resume {
+  id          String   @id @default(uuid()) @db.Uuid
+  resume      String   @db.VarChar
+  coverLetter String   @db.VarChar
+  profileId   String?  @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  createdBy   String?  @db.Uuid
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  updatedBy   String?  @db.Uuid
+  profile     Profile? @relation(fields: [profileId], references: [id])
+
+  @@map("resume")
+}
+
+model EducationalHistory {
+  id           String   @id @default(uuid()) @db.Uuid
+  institution  String   @db.VarChar
+  location     String   @db.VarChar
+  fieldOfStudy String?  @db.VarChar
+  startDate    String   @db.VarChar
+  endDate      String   @db.VarChar
+  profileId    String?  @db.Uuid
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  createdBy    String?  @db.Uuid
+  updatedAt    DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  updatedBy    String?  @db.Uuid
+  profile      Profile? @relation(fields: [profileId], references: [id])
 
   @@map("educational_history")
 }
@@ -292,9 +326,9 @@ model Skill {
   yearsOfExperience Int        @db.Integer
   createdAt         DateTime   @default(now()) @db.Timestamptz(6)
   createdBy         String?    @db.Uuid
-  updatedAt         DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
   updatedBy         String?    @db.Uuid
-  Profile           Profile?   @relation(fields: [profileId], references: [id])
+  profile           Profile?   @relation(fields: [profileId], references: [id])
 
   @@map("skill")
 }
@@ -307,9 +341,9 @@ model Languages {
   proficiency  LanguageProficiency
   createdAt    DateTime            @default(now()) @db.Timestamptz(6)
   createdBy    String?             @db.Uuid
-  updatedAt    DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
   updatedBy    String?             @db.Uuid
-  Profile      Profile?            @relation(fields: [profileId], references: [id])
+  profile      Profile?            @relation(fields: [profileId], references: [id])
 
   @@map("languages")
 }
@@ -324,7 +358,7 @@ model Tags {
   taggedUser     User       @relation("TaggedUser", fields: [taggedUserId], references: [id])
   createdAt      DateTime   @default(now()) @db.Timestamptz(6)
   createdBy      String?    @db.Uuid
-  updatedAt      DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
   updatedBy      String?    @db.Uuid
 
   @@map("tags")

@@ -9,6 +9,7 @@ import {
   JobListing,
   JobListingApplications,
   Prisma,
+  PrismaClient,
   User,
 } from '@prisma/client';
 import { CrudService } from '../common/database/crud.service';
@@ -27,10 +28,8 @@ import {
 } from '../common/interfaces';
 import { ApplyJobListingDto } from './dto/apply-joblisting.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
-import { AdminJobListingFilterDto } from 'src/admin/dto/admin-job-listing.dto';
 import { UpdateJobListingDto } from './dto/edit-job.dto';
-import * as moment from 'moment';
-import { AppUtilities } from 'src/app.utilities';
+import { AppUtilities } from '../app.utilities';
 
 @Injectable()
 export class JobListingsService extends CrudService<
@@ -103,7 +102,7 @@ export class JobListingsService extends CrudService<
         include: {
           jobApplications: true,
           taggedUsers: { select: { taggedUser: true } },
-          Bookmark: true,
+          bookmarks: true,
         },
       };
 
@@ -131,20 +130,16 @@ export class JobListingsService extends CrudService<
     if (!jobListing)
       throw new NotFoundException(JOB_LISTING_ERROR.JOB_NOT_FOUND);
 
-    AppUtilities.addTimestamps(jobListing);
+    AppUtilities.addTimestampBase(jobListing);
 
     return jobListing;
   }
 
-  async createJobListing(
-    isAdmin: boolean,
-    dto: CreateJobListingDto,
-    user: User,
-  ) {
+  async createJobListing(dto: CreateJobListingDto, user: User) {
     try {
       const {
         title,
-        jobDescription,
+        jobResponsibilities,
         category,
         jobType,
         experienceLevel,
@@ -153,41 +148,19 @@ export class JobListingsService extends CrudService<
         ...rest
       } = dto;
 
-      const skillArr: string[] = [];
-      const languageArr: string[] = [];
-
-      if (skills) {
-        const skillSplit = skills.split(',');
-        for (const skill of skillSplit) {
-          const trim = skill.trim();
-          skillArr.push(trim);
-        }
-      }
-
-      if (languages) {
-        const languageSplit = languages.split(',');
-        for (const language of languageSplit) {
-          const trim = language.trim();
-          languageArr.push(trim);
-        }
-      }
-
       const createJobListing = await this.prisma.jobListing.create({
         data: {
           title,
-          jobDescription,
+          jobResponsibilities,
           ...rest,
           salary: rest.salary || '0',
           category: category as Category,
           jobType: jobType as JobType,
           experienceLevel: experienceLevel as ExperienceLevel,
           createdBy: user.id,
-          skills: skillArr,
-          languages: languageArr,
-          status: isAdmin
-            ? JOB_LISTING_STATUS.APPROVED
-            : JOB_LISTING_STATUS.PENDING,
-          approvedBy: isAdmin ? { connect: { id: user.id } } : undefined,
+          skills,
+          languages,
+          status: JOB_LISTING_STATUS.PENDING,
         },
       });
 
@@ -234,33 +207,62 @@ export class JobListingsService extends CrudService<
             url,
           )
         : null;
-      let [resumeUrl, coverLetterUrl] = await Promise.all([
+      let [resumePubId, coverLetterPubId] = await Promise.all([
         uploadResume,
         uploadCoverLetter,
       ]);
 
-      resumeUrl = resumeUrl?.secure_url || '';
-      coverLetterUrl = coverLetterUrl?.secure_url || '';
+      resumePubId = resumePubId?.public_id || '';
+      coverLetterPubId = coverLetterPubId?.public_id || '';
 
-      await this.prisma.jobListingApplications.create({
+      return await this.prisma.jobListingApplications.create({
         data: {
-          resume: resumeUrl,
-          coverLetter: coverLetterUrl,
+          resume: resumePubId,
+          coverLetter: coverLetterPubId,
           availability,
           jobListing: { connect: { id: jobListing.id } },
           user: { connect: { id: user.id } },
           createdBy: user.id,
         },
       });
-
-      return { uploadResume, uploadCoverLetter, availability };
     } catch (error) {
       throw new BadRequestException(error.message);
     }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  async downloadFiles(id: string): Promise<string> {
+  // async downloadFiles(id: string): Promise<string> {
+  //   try {
+  //     const promises = [];
+  //     const jobListingApplication =
+  //       await this.prisma.jobListingApplications.findUnique({ where: { id } });
+
+  //     if (!jobListingApplication)
+  //       throw new NotFoundException(JOB_APPLICATION_ERORR.JOB_APPLICATION);
+
+  //     const resume = jobListingApplication.resume;
+  //     console.log(
+  //       '🚀 ~ file: job-listings.service.ts:286 ~ downloadFiles ~ resume:',
+  //       resume,
+  //     );
+  //     const coverLetter = jobListingApplication.coverLetter;
+  //     console.log(
+  //       '🚀 ~ file: job-listings.service.ts:288 ~ downloadFiles ~ coverLetter:',
+  //       coverLetter,
+  //     );
+
+  //     promises.push(this.cloudinaryService.downloadFile(resume));
+  //     promises.push(this.cloudinaryService.downloadFile(coverLetter));
+
+  //     Promise.all(promises);
+
+  //     return `...downloading ${resume} and ${coverLetter}`;
+  //   } catch (error) {
+  //     throw new BadRequestException(error.message);
+  //   }
+  // }
+
+  async downloadFiles(id: string): Promise<any> {
     try {
       const jobListingApplication =
         await this.prisma.jobListingApplications.findUnique({ where: { id } });
@@ -268,16 +270,22 @@ export class JobListingsService extends CrudService<
       if (!jobListingApplication)
         throw new NotFoundException(JOB_APPLICATION_ERORR.JOB_APPLICATION);
 
-      const resume = jobListingApplication.resume;
-      const coverLetter = jobListingApplication.coverLetter;
+      const resumePubId = jobListingApplication.resume;
+      const coverLetterPubId = jobListingApplication.coverLetter;
 
-      await this.cloudinaryService.downloadFile(resume);
-      await this.cloudinaryService.downloadFile(coverLetter);
-
-      await Promise.all([resume, coverLetter]);
-
-      return `...downloading ${resume} and ${coverLetter}`;
+      const [resume, coverLetter]: any = await Promise.all([
+        await this.cloudinaryService.downloadFile(resumePubId),
+        await this.cloudinaryService.downloadFile(coverLetterPubId),
+      ]);
+      return {
+        resume: resume.secure_url,
+        coverLetter: coverLetter.secure_url,
+      };
     } catch (error) {
+      console.log(
+        '🚀 ~ file: job-listings.service.ts:353 ~ downloadFiles ~ error:',
+        error,
+      );
       throw new BadRequestException(error.message);
     }
   }
@@ -307,13 +315,12 @@ export class JobListingsService extends CrudService<
   // }
 
   async updateJobListing(
-    isAdmin: boolean,
     id: string,
     dto: UpdateJobListingDto,
     user: User,
   ): Promise<JobListing> {
     try {
-      const { title, jobDescription, category, ...rest } = dto;
+      const { title, jobResponsibilities, category, ...rest } = dto;
 
       const foundUser = await this.prisma.user.findUnique({
         where: { id: user.id },
@@ -336,14 +343,11 @@ export class JobListingsService extends CrudService<
         where: { id },
         data: {
           title,
-          jobDescription,
+          jobResponsibilities,
           ...rest,
           category: category as Category,
           updatedBy: foundUser.id,
-          status: isAdmin
-            ? JOB_LISTING_STATUS.APPROVED
-            : JOB_LISTING_STATUS.PENDING,
-          updatedAt: moment().toISOString(),
+          status: JOB_LISTING_STATUS.PENDING,
         },
       });
 
@@ -354,46 +358,72 @@ export class JobListingsService extends CrudService<
   }
 
   async deleteJobListing(id: string, user: User): Promise<void> {
+    const foundUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+    });
+
+    if (!foundUser) {
+      throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+    }
+
+    const jobListing = await this.prisma.jobListing.findFirst({
+      where: { id, createdBy: user.id },
+    });
+
+    if (!jobListing) {
+      throw new NotFoundException(JOB_LISTING_ERROR.JOB_NOT_FOUND);
+    }
+
     try {
-      const foundUser = await this.prisma.user.findUnique({
-        where: { id: user.id },
-      });
+      await this.prisma.$transaction(async (prismaClient: PrismaClient) => {
+        const prismaDeletePromises = [];
 
-      if (!foundUser)
-        throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+        // Delete related data in a single transaction
+        prismaDeletePromises.push(
+          prismaClient.jobListingApplications.deleteMany({
+            where: { jobListingId: id },
+          }),
+          prismaClient.tags.deleteMany({
+            where: { jobListingId: id },
+          }),
+          prismaClient.bookmark.deleteMany({
+            where: { jobListingId: id },
+          }),
+        );
 
-      const jobListing = await this.prisma.jobListing.findUnique({
-        where: { id },
-      });
+        const jobListingApplications =
+          await prismaClient.jobListingApplications.findMany({
+            where: { jobListingId: id },
+          });
+        console.log(
+          '🚀 ~ file: job-listings.service.ts:427 ~ awaitthis.prisma.$transaction ~ jobListingApplication:',
+          jobListingApplications,
+        );
 
-      if (!jobListing)
-        throw new NotFoundException(JOB_LISTING_ERROR.JOB_NOT_FOUND);
+        for (const jobListingApplication of jobListingApplications) {
+          await this.cloudinaryService.deleteFiles([
+            jobListingApplication.resume,
+            jobListingApplication.coverLetter,
+          ]);
+        }
 
-      if (foundUser.id !== jobListing.createdBy)
-        throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
+        prismaDeletePromises.push(
+          prismaClient.jobListing.delete({
+            where: { id },
+          }),
+        );
 
-      await this.prisma.jobListingApplications.deleteMany({
-        where: { jobListingId: id },
-      });
-
-      await this.prisma.tags.deleteMany({
-        where: { jobListingId: id },
-      });
-
-      await this.prisma.bookmark.deleteMany({
-        where: { jobListingId: id },
-      });
-
-      await this.prisma.jobListing.delete({
-        where: { id },
+        // Wait for all delete operations to complete
+        await Promise.all(prismaDeletePromises);
       });
     } catch (error) {
+      console.log(error);
+
       throw new BadRequestException(error.message);
     }
   }
   async getAllUserJobListings(
-    isAdmin: string,
-    { cursor, direction, orderBy, size, ...dto }: AdminJobListingFilterDto,
+    { cursor, direction, orderBy, size, ...dto }: JobListingFilterDto,
     user: User,
   ): Promise<JobListing[]> {
     try {
@@ -466,15 +496,9 @@ export class JobListingsService extends CrudService<
         },
       ]);
 
-      //if admin send all joblistings, else send my joblistings
-      const whereArgs =
-        isAdmin === 'true'
-          ? parsedQueryFilters
-          : { ...parsedQueryFilters, createdBy: user.id };
-
       const args: Prisma.JobListingFindManyArgs = {
-        where: whereArgs,
-        include: { jobApplications: true, Bookmark: true, taggedUsers: true },
+        where: { ...parsedQueryFilters, createdBy: user.id },
+        include: { jobApplications: true, bookmarks: true, taggedUsers: true },
       };
 
       const jobListings = this.findManyPaginate(args, {

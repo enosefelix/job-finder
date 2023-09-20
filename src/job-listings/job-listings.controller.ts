@@ -15,8 +15,18 @@ export class JobListingsController {
     return this.jobListingsService.getJobListings(dto);
   }
 
+  @Get('/:id')
+  async getJobListingById(@Query('id') id: string) {
+    return this.jobListingsService.getJobListingById(id);
+  }
+
   @Get('recents')
   async getRecentJobListing(@Query() dto: JobListingFilterDto) {
     return this.jobListingsService.getRecentJobListing(dto);
+  }
+
+  @Get('jobListingApplication/download/:id')
+  async downloadJobListingApplication(@Query('id') id: string) {
+    return this.jobListingsService.downloadFiles(id);
   }
 }

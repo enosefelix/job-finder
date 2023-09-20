@@ -15,8 +15,6 @@ async function bootstrap() {
   const appHost = configService.get('app.host');
   const appHostname = configService.get('app.hostname');
 
-  app.enableCors();
-
   const initSwagger = (app: INestApplication, serverUrl: string) => {
     const config = new DocumentBuilder()
       .setTitle('Job Finder')
@@ -43,7 +41,25 @@ async function bootstrap() {
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
   );
 
-  // initSwagger(app, appHost);
+  app.enableCors();
+  // const allowedOrigins = [
+  //   /^(https:\/\/([^\.]*\.)?ngrok\.io)$/i,
+  //   // 'https://job-search-api.onrender.com',
+  //   'https://whale-app-wq7hc.ondigitalocean.app',
+  //   'http://localhost:3000',
+  //   'http://localhost:3001',
+  //   'https://job-search-front-end.vercel.app',
+  //   '/^(https://([^.]*.)?job-search-front-end-[^.]+.vercel.app/)$/i',
+  // ];
+  // const allowedOriginsProd = [];
+  // const origins =
+  //   environment === 'production' ? allowedOriginsProd : allowedOrigins;
+
+  // app.enableCors({
+  //   origin: origins,
+  //   credentials: true,
+  // });
+
   await app.listen(appPort, appHostname);
 }
 

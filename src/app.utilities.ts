@@ -6,6 +6,7 @@ import {
   RequestTimeoutException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import {
   formatDistanceToNow,
@@ -195,13 +196,7 @@ export class AppUtilities {
       ) {
         (jobListings as { pageEdges?: any[] })?.pageEdges?.map(
           (jobListing: any) => {
-            console.log('kalnsd;anfdkl;amkldfnamlksa,;');
-
             const timeStamp = moment(jobListing?.node?.createdAt).toDate();
-            console.log(
-              '🚀 ~ file: app.utilities.ts:201 ~ AppUtilities ~ addTimestamps ~ timeStamp:',
-              timeStamp,
-            );
             const currentTime = moment().toDate();
             const secondsAgo = differenceInSeconds(currentTime, timeStamp);
             const minutesAgo = Math.floor(secondsAgo / 60);
@@ -249,10 +244,7 @@ export class AppUtilities {
         );
       } else if (typeof jobListings === 'object') {
         const pageEdges = await jobListings;
-        console.log(
-          '🚀 ~ file: app.utilities.ts:252 ~ AppUtilities ~ addTimestamps ~ pageEdges:',
-          pageEdges.pageEdges,
-        );
+
         pageEdges.pageEdges.forEach((edge: any) => {
           const jobListing = edge.node;
           const timeStamp = moment(jobListing?.createdAt).toDate();
@@ -303,8 +295,6 @@ export class AppUtilities {
     }
   }
   public static async addTimestampBase(jobListings: any) {
-    console.log(jobListings);
-
     if (
       Array.isArray(jobListings) &&
       jobListings.every((item) => typeof item === 'object')
@@ -344,8 +334,6 @@ export class AppUtilities {
           } else {
             timeStampText = `${yearsAgo} year${yearsAgo === 1 ? '' : 's'} ago`;
           }
-          console.log(`${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`);
-
           jobListing.timeStamp = timeStampText;
         });
       } catch (error) {
@@ -384,8 +372,6 @@ export class AppUtilities {
       } else {
         timeStampText = `${yearsAgo} year${yearsAgo === 1 ? '' : 's'} ago`;
       }
-      console.log(`${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`);
-
       jobListings.timeStamp = timeStampText;
     } else {
       console.error('jobListings is neither an array nor an object');
@@ -393,5 +379,31 @@ export class AppUtilities {
         'An error occured, if error persists contact Support',
       );
     }
+  }
+
+  public static extractProperties(user: User) {
+    const extractedProperties = {};
+    const restProperties = {};
+    const propertyMappings = {
+      password: 'pwd',
+      roleId: 'rlId',
+      token: 'tkn',
+      googleId: 'gId',
+      lastLoginIp: 'llIp',
+      tokenExpiresIn: 'tknExpIn',
+    };
+
+    for (const key in user) {
+      if (propertyMappings.hasOwnProperty(key)) {
+        extractedProperties[propertyMappings[key]] = user[key];
+      } else {
+        restProperties[key] = user[key];
+      }
+    }
+
+    return {
+      extracted: extractedProperties,
+      rest: restProperties,
+    };
   }
 }

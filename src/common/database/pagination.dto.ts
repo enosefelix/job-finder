@@ -1,4 +1,4 @@
-import { ApiHideProperty } from '@nestjs/swagger';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsBase64,
@@ -24,7 +24,7 @@ export class PaginationOptionsDto {
   @Type(() => Number)
   size?: number;
 
-  @ApiHideProperty()
+  @ApiProperty()
   @IsOptional()
   orderBy?: string;
 

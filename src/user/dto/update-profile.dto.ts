@@ -26,16 +26,6 @@ export class UpdateProfileDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  industry?: string;
-
-  @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
-  employmentStatus?: string;
-
-  @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
   githubLink?: string;
 
   @ApiPropertyOptional()

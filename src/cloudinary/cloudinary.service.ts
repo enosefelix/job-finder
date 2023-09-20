@@ -50,28 +50,10 @@ export class CloudinaryService {
   async downloadFile(publicId: string) {
     try {
       return new Promise((resolve, reject) => {
-        //   const downloa = v2.api.resource(
-        //     publicId,
-        //     {
-        //       resource_type: resourceType ||  'pdf,
-        //       content_type: 'application/pdf',
-        //       format: 'pdf',
-        //     },
-        //     (error, result) => {
-        //       if (error) return reject(error);
-        //       resolve(result);
-        //     },
-        //   );
-
-        const download = v2.utils.api_url(publicId, {
-          resource_type: 'pdf',
-          format: 'pdf',
-        });
-        (error, result) => {
+        v2.api.resource(publicId, { resource_type: 'raw' }, (error, result) => {
           if (error) return reject(error);
           resolve(result);
-        };
-        return download;
+        });
       });
     } catch (error) {
       throw new BadRequestException(error.message);
@@ -81,18 +63,52 @@ export class CloudinaryService {
   async uploadImage(
     file: Express.Multer.File,
   ): Promise<UploadApiResponse | UploadApiErrorResponse> {
-    return new Promise((resolve, reject) => {
-      const upload = v2.uploader
-        .upload_stream(
-          {
-            resource_type: 'image',
-          },
-          (error, result) => {
-            if (error) return reject(error);
-            resolve(result);
-          },
-        )
-        .end(file.buffer);
-    });
+    try {
+      return new Promise((resolve, reject) => {
+        const upload = v2.uploader
+          .upload_stream(
+            {
+              resource_type: 'image',
+            },
+            (error, result) => {
+              if (error) return reject(error);
+              resolve(result);
+            },
+          )
+          .end(file.buffer);
+      });
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  async deleteFiles(publicIds: string[]) {
+    try {
+      const deletionPromises = publicIds.map((publicId) => {
+        return new Promise((resolve, reject) => {
+          v2.uploader.destroy(
+            publicId,
+            {
+              resource_type: 'raw',
+            },
+            (error, result) => {
+              if (error) {
+                console.error('Error deleting file:', error);
+                reject(error);
+              } else {
+                if (result.result === 'not found') return resolve(result);
+                console.log('File deleted successfully:', result);
+                resolve(result);
+              }
+            },
+          );
+        });
+      });
+
+      await Promise.all(deletionPromises);
+      return 'All files deleted successfully';
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
   }
 }

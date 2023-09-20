@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
-import { SKILLLEVEL } from 'src/common/interfaces';
+import { SKILLLEVEL } from '../../common/interfaces';
 
 export class SkillDto {
   @ApiProperty()

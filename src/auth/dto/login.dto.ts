@@ -5,7 +5,12 @@ export class LoginDto {
   @ApiProperty({
     description: "user's login email",
   })
-  @IsEmail()
+  @IsEmail(
+    {},
+    {
+      message: 'Please enter a valid email address',
+    },
+  )
   @IsNotEmpty()
   public email: string;
 
