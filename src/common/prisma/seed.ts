@@ -2,38 +2,47 @@ import { PrismaClient } from '@prisma/client';
 import { roleSeed } from '../prisma/role.seed';
 import { ROLE_TYPE } from '../interfaces';
 import * as moment from 'moment';
-import { AppUtilities } from '../../app.utilities';
 import { job_listingSeed } from './jobs-seed-data.seed';
+import { AppUtilities } from '../../app.utilities';
 
 async function seedDatabase() {
-  const tenantPrisma = new PrismaClient();
+  const prisma = new PrismaClient();
   const promises = [];
 
   try {
-    const hashedPassword = (await AppUtilities.hasher('Admin@123')) as string;
-    const email = 'admin@mail.com';
+    // const hashedPassword = (await AppUtilities.hasher('Admin@123')) as string;
+    // const email = 'admin@mail.com';
+    const hashedPassword = (await AppUtilities.hasher('Iwia12345')) as string;
+    const email = 'admin@iwia.com';
 
     // Seed roles
-    await tenantPrisma.role.createMany({
+    await prisma.role.createMany({
       data: roleSeed,
       skipDuplicates: true,
     });
 
     // Fetch the ADMIN role
-    const role = await tenantPrisma.role.findFirst({
+    const role = await prisma.role.findFirst({
       where: { code: ROLE_TYPE.ADMIN },
     });
 
-    // delete previous job-listings
-    await tenantPrisma.jobListing.deleteMany({});
+    // // delete previous job-listings
+    // await prisma.jobListingApplications.deleteMany({});
+
+    // // delete previous job-listings
+    // await prisma.jobListing.deleteMany({});
 
     // Seed job-listings
-    await tenantPrisma.jobListing.createMany({
-      data: job_listingSeed,
-      skipDuplicates: true,
-    });
+    // for (const job of job_listingSeed) {
+    //   try {
+    //     await prisma.jobListing.create({ data: job });
+    //     console.debug(`Job listing created ${job.title}`);
+    //   } catch (error) {
+    //     console.error('Error seeding job listing', error);
+    //   }
+    // }
 
-    const user = await tenantPrisma.user.create({
+    const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
@@ -54,7 +63,9 @@ async function seedDatabase() {
     console.error('An error occurred:', error);
   } finally {
     // Close the Prisma client connection
-    await tenantPrisma.$disconnect();
+    console.log('Seeding done.');
+
+    await prisma.$disconnect();
   }
 }
 

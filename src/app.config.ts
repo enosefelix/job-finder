@@ -16,7 +16,7 @@ env.require = (key: string, defaultVal: any = undefined) => {
 };
 
 const config = {
-  environment: env.require('NODE_ENV', 'development'),
+  environment: env.require('NODE_ENV', 'production'),
   app: {
     name: 'job-finder-be',
     port: parseInt(env('APP_PORT', 3001)),
@@ -50,6 +50,15 @@ const config = {
       ),
     ),
     expiresIn: env.require('EXPIRES_IN'),
+  },
+  cloudinary: {
+    folder: env.require('NODE_ENV', 'production'),
+    subfolder: env
+      .require(
+        'APP_HOST',
+        `http://localhost:${parseInt(env('APP_PORT', 3001))}`,
+      )
+      .replace(/\//g, ''),
   },
 };
 

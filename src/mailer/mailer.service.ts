@@ -1,9 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { MailerService as NestMailerService } from '@nestjs-modules/mailer';
-import { PrismaService } from '../common/prisma/prisma.service';
+import { PrismaService } from '@@common/prisma/prisma.service';
 import { AppUtilities } from '../app.utilities';
 import * as moment from 'moment';
-import { CacheService } from '../common/cache/cache.service';
+import { CacheService } from '@@common/cache/cache.service';
 
 @Injectable()
 export class MailerService {

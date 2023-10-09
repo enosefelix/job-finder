@@ -18,16 +18,26 @@ import { HealthController } from './health-check.controller';
 import { MailerService } from './mailer/mailer.service';
 import { UserModule } from './user/user.module';
 import { ProfileModule } from './user/profile/profile.module';
+import { PassportModule } from '@nestjs/passport';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { BlogModule } from './admin/blog/blog.module';
 
 @Module({
   imports: [
     AuthModule,
     ConfigModule.forRoot({ isGlobal: true, load: [appConfig] }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 20000,
+        limit: 10,
+      },
+    ]),
     JobListingsModule,
     AdminModule,
     MailerModule,
     CloudinaryModule,
     NestCacheModule.registerAsync({
+      isGlobal: true,
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         const redisPassword = configService.get<string>('redis.password'); // Get the password from environment
@@ -63,9 +73,11 @@ import { ProfileModule } from './user/profile/profile.module';
       }),
       inject: [ConfigService],
     }),
-    CacheModule.register({}),
+    CacheModule.register({ isGlobal: true }),
     UserModule,
     ProfileModule,
+    PassportModule.register({ isGlobal: true, defaultStrategy: 'jwt' }),
+    BlogModule,
   ],
   controllers: [HealthController],
   providers: [
@@ -74,6 +86,10 @@ import { ProfileModule } from './user/profile/profile.module';
     JwtStrategy,
     CacheService,
     MailerService,
+    {
+      provide: 'APP_GUARD',
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

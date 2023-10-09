@@ -1,7 +1,7 @@
 import { ApiHideProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsEnum, IsOptional, IsString } from 'class-validator';
-import { Category } from '../../common/interfaces';
-import { PaginationSearchOptionsDto } from '../../common/interfaces/pagination-search-options.dto';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { Category } from '@@common/interfaces';
+import { PaginationSearchOptionsDto } from '@@common/interfaces/pagination-search-options.dto';
 
 export class JobListingFilterDto extends PaginationSearchOptionsDto {
   @ApiHideProperty()
@@ -31,12 +31,4 @@ export class JobListingFilterDto extends PaginationSearchOptionsDto {
   @IsOptional()
   @IsEnum(Category)
   category?: Category;
-
-  // @ApiPropertyOptional({
-  //   enum: JOB_LISTING_STATUS,
-  //   description: 'Pending | Rejected | Approved',
-  // })
-  // @IsOptional()
-  // @IsEnum(JOB_LISTING_STATUS)
-  // status?: JOB_LISTING_STATUS;
 }

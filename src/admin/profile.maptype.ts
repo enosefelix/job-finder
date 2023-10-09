@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { CrudMapType } from '../common/database/crud.service';
+import { CrudMapType } from '@@common/database/crud.service';
 
 export class ProfileMapType implements CrudMapType {
   aggregate: Prisma.ProfileAggregateArgs;

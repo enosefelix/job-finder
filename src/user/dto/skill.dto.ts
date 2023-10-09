@@ -1,8 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
-import { SKILLLEVEL } from '../../common/interfaces';
+import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import { SKILLLEVEL } from '@@common/interfaces';
 
-export class SkillDto {
+export class TechnicalSkillDto {
   @ApiProperty()
   @IsNotEmpty()
   @IsString()
@@ -18,7 +18,13 @@ export class SkillDto {
 
   @ApiProperty()
   @IsNotEmpty()
-  @Min(1)
-  @IsInt()
-  public yearsOfExperience: number;
+  @IsString()
+  public yearsOfExperience: string;
+}
+
+export class SoftSkillDto {
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  public name: string;
 }

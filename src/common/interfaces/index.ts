@@ -37,6 +37,7 @@ export enum API_TAGS {
   HEALTH = 'Health Check',
   USER = 'User',
   PROFILE = 'User Profile',
+  BLOGS = 'Blogs',
 }
 
 export enum Category {
@@ -106,6 +107,10 @@ export enum JOB_LISTING_ERROR {
   JOB_NOT_FOUND = 'Job Listing not found',
 }
 
+export enum BLOG_ERROR_MSGS {
+  BLOG_NOT_FOUND = 'Blog not found',
+}
+
 export enum JOB_APPLICATION_ERORR {
   JOB_APPLICATION = 'Job Listing Application not found',
   NO_JOBS_FOUND = 'No Job Application found',
@@ -113,6 +118,11 @@ export enum JOB_APPLICATION_ERORR {
 
 export enum DATA_NOT_FOUND {
   NOT_FOUND = 'Data not found',
+}
+
+export enum VALIDATION_ERROR_MSG {
+  UPLOAD_ONE_FILE = 'At least one document (resume or cover letter) must be uploaded.',
+  UPLOAD_BLOG_IMAGE = 'An image must be uploaded',
 }
 
 export enum ADMIN_ERROR_MSGS {}

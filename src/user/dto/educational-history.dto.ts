@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class EducationHistDto {
   @ApiProperty()
@@ -7,19 +7,24 @@ export class EducationHistDto {
   @IsString()
   institution: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  degreeType: string;
+
   @ApiProperty()
   @IsNotEmpty()
   @IsString()
   location: string;
 
   @ApiProperty()
-  @IsNotEmpty()
   @IsString()
+  @IsNotEmpty()
   startDate: string;
 
   @ApiProperty()
-  @IsNotEmpty()
   @IsString()
+  @IsNotEmpty()
   endDate: string;
 
   @ApiPropertyOptional()

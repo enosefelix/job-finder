@@ -3,8 +3,8 @@ import { MailerService } from './mailer.service';
 import { MailerModule as NestMailerModule } from '@nestjs-modules/mailer';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MailerController } from './mailer.controller';
-import { PrismaService } from '../common/prisma/prisma.service';
-import { CacheService } from '../common/cache/cache.service';
+import { PrismaService } from '@@common/prisma/prisma.service';
+import { CacheService } from '@@common/cache/cache.service';
 import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({

@@ -1,7 +1,7 @@
 import { ApiHideProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBooleanString, IsEnum, IsOptional, IsString } from 'class-validator';
-import { Category, JOB_LISTING_STATUS } from '../../common/interfaces';
-import { PaginationSearchOptionsDto } from '../../common/interfaces/pagination-search-options.dto';
+import { Category, JOB_LISTING_STATUS } from '@@common/interfaces';
+import { PaginationSearchOptionsDto } from '@@common/interfaces/pagination-search-options.dto';
 
 export class AdminJobListingFilterDto extends PaginationSearchOptionsDto {
   @ApiHideProperty()

@@ -1,11 +1,11 @@
 import { User } from '@prisma/client';
-import { AppUtilities } from '../../app.utilities';
 import {
   HttpException,
   Injectable,
   NotAcceptableException,
   NotFoundException,
 } from '@nestjs/common';
+import { AppUtilities } from '../../app.utilities';
 
 export interface Delegate {
   aggregate(data: unknown): unknown;

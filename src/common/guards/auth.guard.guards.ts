@@ -1,45 +1,3 @@
-// import {
-//   ExecutionContext,
-//   ForbiddenException,
-//   Injectable,
-// } from '@nestjs/common';
-// import { AuthGuard } from '@nestjs/passport';
-// import { ROLE_TYPE } from '../interfaces';
-
-// @Injectable()
-// export class AdminAuthGuard extends AuthGuard() {
-//   constructor() {
-//     super();
-//   }
-//   canActivate(context: ExecutionContext): any {
-//     const request = context.switchToHttp().getRequest();
-//     const user = request.user;
-//     console.log(
-//       '🚀 ~ file: auth.guard.guards.ts:14 ~ AdminAuthGuard ~ canActivate ~ user:',
-//       request.user,
-//     );
-//     // if (user?.role?.code === ROLE_TYPE.ADMIN) {
-//     //   return true;
-//     // }
-//     // throw new ForbiddenException('User cannot access this resource');
-//   }
-// }
-
-// import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
-// import { Observable } from 'rxjs';
-
-// @Injectable()
-// export class AuthGuard implements CanActivate {
-//   canActivate(context: ExecutionContext): any {
-//     const request = context.switchToHttp().getRequest();
-//     console.log(
-//       '🚀 ~ file: auth.guard.guards.ts:38 ~ AuthGuard ~ request:',
-//       request.user,
-//     );
-//     // return validateRequest(request);
-//   }
-// }
-
 import {
   ExecutionContext,
   ForbiddenException,
@@ -74,7 +32,9 @@ export class AdminAuthGuard extends AuthGuard('jwt') {
         return true;
       }
 
-      throw new ForbiddenException('User cannot access this resource');
+      throw new ForbiddenException(
+        'User cannot access this resource. You are not an Admin',
+      );
     } catch (error) {
       throw new UnauthorizedException(error.message);
     }

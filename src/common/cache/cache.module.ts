@@ -2,8 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheModule as NestCacheModule } from '@nestjs/cache-manager';
 import * as redisStore from 'cache-manager-redis-store';
-import { MailerModule } from '../../mailer/mailer.module';
-import { AuthModule } from '../../auth/auth.module';
+import { MailerModule } from '@@mailer/mailer.module';
+import { AuthModule } from '@@auth/auth.module';
 import { CacheService } from './cache.service';
 
 @Module({

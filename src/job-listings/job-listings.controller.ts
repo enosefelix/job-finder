@@ -1,8 +1,26 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UploadedFiles,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { JobListingsService } from './job-listings.service';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { JobListingFilterDto } from './dto/job-listing-filter.dto';
-import { API_TAGS } from '../common/interfaces';
+import { API_TAGS, VALIDATION_ERROR_MSG } from '@@common/interfaces';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { AuthGuard } from '@nestjs/passport';
+import { ApplyJobListingDto } from './dto/apply-joblisting.dto';
+import { GetQuery, GetUser } from '@@/common/decorators/get-user.decorator';
+import { User } from '@prisma/client';
+import { Throttle } from '@nestjs/throttler';
+import { ApiResponseMeta } from '@@/common/decorators/response.decorator';
 
 @ApiBearerAuth()
 @ApiTags(API_TAGS.JOBS)
@@ -10,23 +28,50 @@ import { API_TAGS } from '../common/interfaces';
 export class JobListingsController {
   constructor(private readonly jobListingsService: JobListingsService) {}
 
+  @ApiResponseMeta({ message: 'Fetched JobListing Successfully' })
   @Get()
   async getJobListings(@Query() dto: JobListingFilterDto) {
     return this.jobListingsService.getJobListings(dto);
   }
 
+  @ApiResponseMeta({ message: 'Fetched JobListing Successfully' })
   @Get('/:id')
-  async getJobListingById(@Query('id') id: string) {
+  async getJobListingById(@Param('id') id: string) {
     return this.jobListingsService.getJobListingById(id);
   }
 
-  @Get('recents')
-  async getRecentJobListing(@Query() dto: JobListingFilterDto) {
-    return this.jobListingsService.getRecentJobListing(dto);
-  }
+  // @Get('jobListingApplication/download/:id')
+  // async downloadJobListingApplication(@Query('id') id: string) {
+  //   return this.jobListingsService.downloadFiles(id);
+  // }
 
-  @Get('jobListingApplication/download/:id')
-  async downloadJobListingApplication(@Query('id') id: string) {
-    return this.jobListingsService.downloadFiles(id);
+  @Throttle({ default: { limit: 5, ttl: 30000 } })
+  @Post('/:id/apply')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'resume', maxCount: 1 },
+      { name: 'coverLetter', maxCount: 1 },
+    ]),
+  )
+  @UseGuards(AuthGuard())
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: ApplyJobListingDto })
+  async applyJobListing(
+    @UploadedFiles()
+    files: {
+      resume?: Express.Multer.File[];
+      coverLetter?: Express.Multer.File[];
+    },
+    @Param('id') id: string,
+    @GetUser() user: User,
+    @Body() applyDto: ApplyJobListingDto,
+    @GetQuery() req: any,
+  ) {
+    if (!files || Object.keys(files).every((key) => !files[key])) {
+      // Handle validation error
+      throw new BadRequestException(VALIDATION_ERROR_MSG.UPLOAD_ONE_FILE);
+    }
+
+    return this.jobListingsService.apply(id, user, applyDto, files, req);
   }
 }

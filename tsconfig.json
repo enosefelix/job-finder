@@ -16,6 +16,16 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false
+    "noFallthroughCasesInSwitch": false,
+    "paths": {
+      "@@/*": ["src/*"],
+      "@@auth/*": ["src/auth/*"],
+      "@@admin/*": ["src/admin/*"],
+      "@@cloudinary/*": ["src/cloudinary/*"],
+      "@@job-listings/*": ["src/job-listings/*"],
+      "@@common/*": ["src/common/*"],
+      "@@mailer/*": ["src/mailer/*"],
+      "@@prisma/*": ["node_modules/.prisma/*"]
+    }
   }
 }

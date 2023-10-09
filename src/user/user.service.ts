@@ -5,13 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { User } from '@prisma/client';
-import { PrismaService } from '../common/prisma/prisma.service';
-import { CreateJobListingDto } from '../job-listings/dto/create-job-listing.dto';
-import { UpdateJobListingDto } from '../job-listings/dto/edit-job.dto';
-import { JobListingFilterDto } from '../job-listings/dto/job-listing-filter.dto';
-import { JobListingsService } from '../job-listings/job-listings.service';
+import { PrismaService } from '@@common/prisma/prisma.service';
+import { CreateJobListingDto } from '@@job-listings/dto/create-job-listing.dto';
+import { UpdateJobListingDto } from '@@job-listings/dto/edit-job.dto';
+import { JobListingsService } from '@@job-listings/job-listings.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { SkillDto } from './dto/skill.dto';
+import { SoftSkillDto, TechnicalSkillDto } from './dto/skill.dto';
 import { EducationHistDto } from './dto/educational-history.dto';
 import { WorkExperienceDto } from './dto/work-experience.dto';
 import { LanguagesDto } from './dto/languages.dto';
@@ -22,10 +21,12 @@ import {
   JOB_APPLICATION_ERORR,
   JOB_LISTING_ERROR,
   JOB_LISTING_STATUS,
-} from '../common/interfaces';
-import { CloudinaryService } from '../cloudinary/cloudinary.service';
+} from '@@common/interfaces';
+import { CloudinaryService } from '@@cloudinary/cloudinary.service';
 import { AppUtilities } from '../app.utilities';
 import { CertificationsDto } from './dto/certifications.dto';
+import { UserJobListingDto } from './dto/get-user-joblisting.dto';
+import * as moment from 'moment';
 
 @Injectable()
 export class UserService {
@@ -39,7 +40,7 @@ export class UserService {
     return await this.jobListingService.createJobListing(dto, user);
   }
 
-  async viewMyJobListings(dto: JobListingFilterDto, user: User) {
+  async viewMyJobListings(dto: UserJobListingDto, user: User) {
     return await this.jobListingService.getAllUserJobListings(dto, user);
   }
 
@@ -66,8 +67,15 @@ export class UserService {
   }
 
   async getMyApplications(user: User) {
+    const foundUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+    });
+
+    if (!foundUser) {
+      throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+    }
+
     const jobApplication = await this.prisma.jobListingApplications.findMany({
-      where: { createdBy: user.id },
       include: { jobListing: true },
     });
 
@@ -82,7 +90,7 @@ export class UserService {
   async getMySingleApplication(id: string, user: User) {
     const jobApplication = await this.prisma.jobListingApplications.findFirst({
       where: { id, createdBy: user.id },
-      // include: { jobListing: true },
+      include: { jobListing: true },
     });
     if (!jobApplication)
       throw new NotFoundException(JOB_APPLICATION_ERORR.JOB_APPLICATION);
@@ -105,10 +113,12 @@ export class UserService {
       select: {
         profile: {
           include: {
-            skills: true,
+            technicalSkills: true,
+            softSkills: true,
             educationalHistory: true,
             languages: true,
             workExperiences: true,
+            certifications: true,
           },
         },
       },
@@ -126,41 +136,41 @@ export class UserService {
   ) {
     try {
       const uploadProfilePic: any = profilePic
-        ? await this.cloudinaryService.uploadImage(profilePic).catch(() => {
-            throw new BadRequestException('Invalid file type.');
-          })
+        ? await this.cloudinaryService
+            .uploadImage(profilePic, user.id)
+            .catch((e) => {
+              throw new BadRequestException('Invalid file type.', e);
+            })
         : null;
-      const profilePicUrl = uploadProfilePic?.secure_url || '';
-
+      const profilePicture = uploadProfilePic?.secure_url || '';
       const foundUser = await this.prisma.user.findUnique({
         where: { id: user.id },
       });
-
       if (!foundUser)
         throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
-
       const updateProfile = await this.prisma.profile.update({
         where: { userId: user.id },
         data: {
           ...dto,
-          profilePicUrl,
+          profilePic: profilePicture,
           updatedBy: user.id,
         },
       });
-
       return updateProfile;
     } catch (error) {
       throw new BadRequestException(error.message);
     }
   }
 
-  async uploadProfilePic(profilePic: Express.Multer.File, user: User) {
-    const uploadProfilePic: any = profilePic
-      ? await this.cloudinaryService.uploadImage(profilePic).catch(() => {
-          throw new BadRequestException('Invalid file type.');
-        })
+  async uploadProfilePicture(profilePicture: Express.Multer.File, user: User) {
+    const uploadProfilePic: any = profilePicture
+      ? await this.cloudinaryService
+          .uploadImage(profilePicture, user.id)
+          .catch(() => {
+            throw new BadRequestException('Invalid file type.');
+          })
       : null;
-    const profilePicUrl = uploadProfilePic?.secure_url || '';
+    const profilePic = uploadProfilePic?.secure_url || '';
 
     const foundUser = await this.prisma.user.findUnique({
       where: { id: user.id },
@@ -168,16 +178,16 @@ export class UserService {
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    const updateProfile = await this.prisma.profile.update({
+    await this.prisma.profile.update({
       where: { userId: user.id },
       data: {
-        profilePicUrl,
+        profilePic,
         updatedBy: user.id,
       },
     });
   }
 
-  async addSkill(dto: SkillDto, user: User) {
+  async addTechnicalSkill(dto: TechnicalSkillDto, user: User) {
     const foundUser = await this.prisma.user.findUnique({
       where: { id: user.id },
       select: { profile: true },
@@ -185,7 +195,7 @@ export class UserService {
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    return await this.prisma.skill.create({
+    return await this.prisma.technicalSkill.create({
       data: {
         ...dto,
         profile: { connect: { userId: user.id } },
@@ -194,12 +204,12 @@ export class UserService {
     });
   }
 
-  async editSkill(id: string, dto: SkillDto, user: User) {
+  async editTechnicalSkill(id: string, dto: TechnicalSkillDto, user: User) {
     const foundUser = await this.prisma.user.findUnique({
       where: { id: user.id },
     });
 
-    const skill = await this.prisma.skill.findFirst({
+    const skill = await this.prisma.technicalSkill.findFirst({
       where: { id, createdBy: user.id },
     });
 
@@ -210,7 +220,7 @@ export class UserService {
     if (user.id !== skill.createdBy)
       throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-    return await this.prisma.skill.update({
+    return await this.prisma.technicalSkill.update({
       where: { id },
       data: {
         ...dto,
@@ -219,14 +229,14 @@ export class UserService {
     });
   }
 
-  async deleteSkill(id: string, user: User) {
+  async deleteTechnicalSkill(id: string, user: User) {
     const foundUser = await this.prisma.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    const skill = await this.prisma.skill.findFirst({
+    const skill = await this.prisma.technicalSkill.findFirst({
       where: {
         id,
         createdBy: user.id,
@@ -238,7 +248,73 @@ export class UserService {
     if (skill.createdBy !== user.id)
       throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-    await this.prisma.skill.delete({
+    await this.prisma.technicalSkill.delete({
+      where: { id },
+    });
+  }
+
+  async addSoftSkill(dto: SoftSkillDto, user: User) {
+    const foundUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { profile: true },
+    });
+
+    if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+
+    return await this.prisma.softSkill.create({
+      data: {
+        ...dto,
+        profile: { connect: { userId: user.id } },
+        createdBy: user.id,
+      },
+    });
+  }
+
+  async editSoftSkill(id: string, dto: SoftSkillDto, user: User) {
+    const foundUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+    });
+
+    const skill = await this.prisma.softSkill.findFirst({
+      where: { id, createdBy: user.id },
+    });
+
+    if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+
+    if (!skill) throw new NotFoundException(DATA_NOT_FOUND.NOT_FOUND);
+
+    if (user.id !== skill.createdBy)
+      throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
+
+    return await this.prisma.softSkill.update({
+      where: { id },
+      data: {
+        ...dto,
+        updatedBy: user.id,
+      },
+    });
+  }
+
+  async deleteSoftSkill(id: string, user: User) {
+    const foundUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+    });
+
+    if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+
+    const skill = await this.prisma.softSkill.findFirst({
+      where: {
+        id,
+        createdBy: user.id,
+      },
+    });
+
+    if (!skill) throw new NotFoundException(DATA_NOT_FOUND.NOT_FOUND);
+
+    if (skill.createdBy !== user.id)
+      throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
+
+    await this.prisma.softSkill.delete({
       where: { id },
     });
   }
@@ -250,9 +326,22 @@ export class UserService {
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
+    // eslint-disable-next-line prefer-const
+    let { endDate, startDate, ...rest } = dto;
+
+    if (endDate && (endDate as any) instanceof Date) {
+      endDate = moment(endDate as unknown as Date).toISOString();
+    } else if (typeof endDate === 'string') {
+      endDate;
+    }
+
+    moment(startDate).toISOString();
+
     const educationHistory = await this.prisma.educationalHistory.create({
       data: {
-        ...dto,
+        startDate,
+        endDate,
+        ...rest,
         createdBy: user.id,
         profile: { connect: { userId: user.id } },
       },
@@ -268,6 +357,17 @@ export class UserService {
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
+    // eslint-disable-next-line prefer-const
+    let { endDate, startDate, ...rest } = dto;
+
+    if (endDate && (endDate as any) instanceof Date) {
+      endDate = moment(endDate as unknown as Date).toISOString();
+    } else if (typeof endDate === 'string') {
+      endDate;
+    }
+
+    moment(startDate).toISOString();
+
     const educationHist = await this.prisma.educationalHistory.findFirst({
       where: { id, createdBy: user.id },
     });
@@ -280,7 +380,9 @@ export class UserService {
     return await this.prisma.educationalHistory.update({
       where: { id },
       data: {
-        ...dto,
+        startDate,
+        endDate,
+        ...rest,
         updatedBy: user.id,
       },
     });
@@ -314,9 +416,22 @@ export class UserService {
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
+    // eslint-disable-next-line prefer-const
+    let { endDate, startDate, ...rest } = dto;
+
+    if (endDate && (endDate as any) instanceof Date) {
+      endDate = moment(endDate as unknown as Date).toISOString();
+    } else if (typeof endDate === 'string') {
+      endDate;
+    }
+
+    moment(startDate).toISOString();
+
     const workExperience = await this.prisma.workExperience.create({
       data: {
-        ...dto,
+        endDate,
+        startDate,
+        ...rest,
         createdBy: user.id,
         profile: { connect: { userId: user.id } },
       },
@@ -341,10 +456,23 @@ export class UserService {
     if (workExperience.createdBy !== user.id)
       throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
+    // eslint-disable-next-line prefer-const
+    let { endDate, startDate, ...rest } = dto;
+
+    if (endDate && (endDate as any) instanceof Date) {
+      endDate = moment(endDate as unknown as Date).toISOString();
+    } else if (typeof endDate === 'string') {
+      endDate;
+    }
+
+    moment(startDate).toISOString();
+
     return await this.prisma.workExperience.update({
       where: { id },
       data: {
-        ...dto,
+        startDate,
+        endDate,
+        ...rest,
         updatedBy: user.id,
       },
     });
@@ -382,6 +510,7 @@ export class UserService {
       data: {
         ...dto,
         createdBy: user.id,
+        profile: { connect: { userId: user.id } },
       },
     });
   }
@@ -443,6 +572,7 @@ export class UserService {
       data: {
         ...dto,
         createdBy: user.id,
+        profile: { connect: { userId: user.id } },
       },
     });
   }
@@ -504,8 +634,8 @@ export class UserService {
       where: { id: jobListingId, status: JOB_LISTING_STATUS.APPROVED },
     });
 
-    // if (jobListing && jobListing.createdBy === foundUser.id)
-    //   throw new BadRequestException('Cannot Bookmark your jobListing');
+    if (jobListing && jobListing.createdBy === foundUser.id)
+      throw new BadRequestException('Cannot Bookmark your jobListing');
 
     if (!jobListing)
       throw new NotFoundException(JOB_LISTING_ERROR.JOB_NOT_FOUND);

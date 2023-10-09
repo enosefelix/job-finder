@@ -3,9 +3,9 @@ import {
   Controller,
   Delete,
   Get,
+  Param,
   Patch,
   Post,
-  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -13,16 +13,17 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiConsumes, ApiTags, ApiBody } from '@nestjs/swagger';
 import { User } from '@prisma/client';
-import { GetUser } from '../../common/decorators/get-user.decorator';
-import { ApiResponseMeta } from '../../common/decorators/response.decorator';
-import { API_TAGS } from '../../common/interfaces';
+import { GetUser } from '@@common/decorators/get-user.decorator';
+import { ApiResponseMeta } from '@@common/decorators/response.decorator';
+import { API_TAGS } from '@@common/interfaces';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
-import { SkillDto } from '../dto/skill.dto';
+import { SoftSkillDto, TechnicalSkillDto } from '../dto/skill.dto';
 import { EducationHistDto } from '../dto/educational-history.dto';
 import { LanguagesDto } from '../dto/languages.dto';
 import { UserService } from '../user.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { WorkExperienceDto } from '../dto/work-experience.dto';
+import { CertificationsDto } from '../dto/certifications.dto';
 
 @ApiTags(API_TAGS.PROFILE)
 @ApiBearerAuth()
@@ -37,41 +38,69 @@ export class ProfileController {
 
   @ApiResponseMeta({ message: 'Profile Updated Successfully' })
   @Post('/update')
-  @UseInterceptors(FileInterceptor('profilePicUrl'))
+  @UseInterceptors(FileInterceptor('profilePic'))
   @UseGuards(AuthGuard())
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UpdateProfileDto })
   async updateProfile(
-    @UploadedFile() profilePicUrl: Express.Multer.File,
+    @UploadedFile() profilePic: Express.Multer.File,
     @Body() dto: UpdateProfileDto,
     @GetUser() user: User,
   ) {
-    return this.userService.updateProfile(dto, profilePicUrl, user);
+    return this.userService.updateProfile(dto, profilePic, user);
   }
 
-  @ApiResponseMeta({ message: 'Skill Added Successfully' })
-  @Post('/skill/create')
+  @ApiResponseMeta({ message: 'Technical Skill Added Successfully' })
+  @Post('/technical-skill/create')
   @UseGuards(AuthGuard())
-  async addSkill(@Body() dto: SkillDto, @GetUser() user: User) {
-    return this.userService.addSkill(dto, user);
-  }
-
-  @ApiResponseMeta({ message: 'Skill Updated Successfully' })
-  @Patch('/skill/:id/edit')
-  @UseGuards(AuthGuard())
-  async editSkill(
-    @Query('id') id: string,
-    @Body() dto: SkillDto,
+  async addTechnicalSkill(
+    @Body() dto: TechnicalSkillDto,
     @GetUser() user: User,
   ) {
-    return this.userService.editSkill(id, dto, user);
+    return this.userService.addTechnicalSkill(dto, user);
   }
 
-  @ApiResponseMeta({ message: 'Skill Deleted Successfully' })
-  @Delete('/skill/:id/delete')
+  @ApiResponseMeta({ message: 'Technical Skill Updated Successfully' })
+  @Patch('/technical-skill/:id/edit')
   @UseGuards(AuthGuard())
-  async deleteSkill(@Query('id') id: string, @GetUser() user: User) {
-    return this.userService.deleteSkill(id, user);
+  async editTechnicalSkill(
+    @Param('id') id: string,
+    @Body() dto: TechnicalSkillDto,
+    @GetUser() user: User,
+  ) {
+    return this.userService.editTechnicalSkill(id, dto, user);
+  }
+
+  @ApiResponseMeta({ message: 'Technical Skill Deleted Successfully' })
+  @Delete('/technical-skill/:id/delete')
+  @UseGuards(AuthGuard())
+  async deleteTechnicalSkill(@Param('id') id: string, @GetUser() user: User) {
+    return this.userService.deleteTechnicalSkill(id, user);
+  }
+
+  @ApiResponseMeta({ message: 'Soft Skill Added Successfully' })
+  @Post('/soft-skill/create')
+  @UseGuards(AuthGuard())
+  async addSoftSkill(@Body() dto: SoftSkillDto, @GetUser() user: User) {
+    return this.userService.addSoftSkill(dto, user);
+  }
+
+  @ApiResponseMeta({ message: 'Soft Skill Updated Successfully' })
+  @Patch('/soft-skill/:id/edit')
+  @UseGuards(AuthGuard())
+  async editSoftSkill(
+    @Param('id') id: string,
+    @Body() dto: SoftSkillDto,
+    @GetUser() user: User,
+  ) {
+    return this.userService.editSoftSkill(id, dto, user);
+  }
+
+  @ApiResponseMeta({ message: 'Soft Skill Deleted Successfully' })
+  @Delete('/soft-skill/:id/delete')
+  @UseGuards(AuthGuard())
+  async deleteSoftSkill(@Param('id') id: string, @GetUser() user: User) {
+    return this.userService.deleteSoftSkill(id, user);
   }
 
   @ApiResponseMeta({ message: 'Work Experience Added Successfully' })
@@ -88,7 +117,7 @@ export class ProfileController {
   @Patch('/work-experience/:id/edit')
   @UseGuards(AuthGuard())
   async editWorkExperience(
-    @Query('id') id: string,
+    @Param('id') id: string,
     @Body() dto: WorkExperienceDto,
     @GetUser() user: User,
   ) {
@@ -98,7 +127,7 @@ export class ProfileController {
   @ApiResponseMeta({ message: 'Work Experience Deleted Successfully' })
   @Delete('/work-experience/:id/delete')
   @UseGuards(AuthGuard())
-  async deleteWorkExperience(@Query('id') id: string, @GetUser() user: User) {
+  async deleteWorkExperience(@Param('id') id: string, @GetUser() user: User) {
     return this.userService.deleteWorkExperiences(id, user);
   }
 
@@ -116,7 +145,7 @@ export class ProfileController {
   @Patch('/education/:id/edit')
   @UseGuards(AuthGuard())
   async editEducation(
-    @Query('id') id: string,
+    @Param('id') id: string,
     @Body() dto: EducationHistDto,
     @GetUser() user: User,
   ) {
@@ -127,10 +156,38 @@ export class ProfileController {
   @Delete('/education/:id/delete')
   @UseGuards(AuthGuard())
   async deleteEeducationHistory(
-    @Query('id') id: string,
+    @Param('id') id: string,
     @GetUser() user: User,
   ) {
     return this.userService.deleteEducationHistory(id, user);
+  }
+
+  @ApiResponseMeta({ message: 'Certification Added Successfully' })
+  @Post('/certification/create')
+  @UseGuards(AuthGuard())
+  async addCertification(
+    @Body() dto: CertificationsDto,
+    @GetUser() user: User,
+  ) {
+    return this.userService.addCertifications(dto, user);
+  }
+
+  @ApiResponseMeta({ message: 'Certification Updated Successfully' })
+  @Patch('/certification/:id/edit')
+  @UseGuards(AuthGuard())
+  async editCertification(
+    @Param('id') id: string,
+    @Body() dto: CertificationsDto,
+    @GetUser() user: User,
+  ) {
+    return this.userService.editCertification(id, dto, user);
+  }
+
+  @ApiResponseMeta({ message: 'Certification Deleted Successfully' })
+  @Delete('/certification/:id/delete')
+  @UseGuards(AuthGuard())
+  async deleteCertification(@Param('id') id: string, @GetUser() user: User) {
+    return this.userService.deleteCertification(id, user);
   }
 
   @ApiResponseMeta({ message: 'Language Added Successfully' })
@@ -140,21 +197,21 @@ export class ProfileController {
     return this.userService.addLanguages(dto, user);
   }
 
-  @ApiResponseMeta({ message: 'Languages Updated Successfully' })
+  @ApiResponseMeta({ message: 'Language Updated Successfully' })
   @Patch('/languages/:id/edit')
   @UseGuards(AuthGuard())
   async editLanguage(
-    @Query('id') id: string,
+    @Param('id') id: string,
     @Body() dto: LanguagesDto,
     @GetUser() user: User,
   ) {
     return this.userService.editLanguages(id, dto, user);
   }
 
-  @ApiResponseMeta({ message: 'Languages Deleted Successfully' })
+  @ApiResponseMeta({ message: 'Language Deleted Successfully' })
   @Delete('/languages/:id/delete')
   @UseGuards(AuthGuard())
-  async deleteLanguage(@Query('id') id: string, @GetUser() user: User) {
+  async deleteLanguage(@Param('id') id: string, @GetUser() user: User) {
     return this.userService.deleteLanguages(id, user);
   }
 

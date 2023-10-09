@@ -7,7 +7,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { PrismaService } from '../common/prisma/prisma.service';
+import { PrismaService } from '@@common/prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
@@ -17,16 +17,16 @@ import {
   AUTH_ERROR_MSGS,
   ROLE_TYPE,
   USER_STATUS,
-} from '../common/interfaces/index';
+} from '@@common/interfaces/index';
 import { SendTokenDto } from './dto/send-token.dto';
 import * as moment from 'moment';
 import { AppUtilities } from '../app.utilities';
 import { SignupDto } from './dto/signup.dto';
 import { User } from '@prisma/client';
-import { MailerService } from '../mailer/mailer.service';
+import { MailerService } from '@@mailer/mailer.service';
 import { ForgotPasswordDto } from './dto/reset-password.dto';
 import { UpdatePasswordDto } from './dto/updatePassword.dto';
-import { CacheService } from '../common/cache/cache.service';
+import { CacheService } from '@@common/cache/cache.service';
 import { VerifyTokenDto } from './dto/verify-token.dto';
 @Injectable()
 export class AuthService {
@@ -345,45 +345,43 @@ export class AuthService {
           },
         });
 
-        const properties = AppUtilities.extractProperties(newUser);
-
-        const { rest } = properties;
-
-        return {
-          user: rest,
-        };
+        return await this.googleLoginCallback(newUser, email, ip);
       }
 
-      const jwtPayload: JwtPayload = { email: user.email, userId: user.id };
-      const token: string = await this.jwtService.sign(jwtPayload);
-
-      const refreshToken: string = await this.jwtService.sign(jwtPayload, {
-        secret: this.configService.get('JWT_SECRET'),
-        expiresIn: this.configService.get('JWT_EXPIRES'),
-      });
-
-      const currentDate = moment().toISOString();
-
-      const updatedUser = await this.prisma.user.update({
-        where: { email: email.toLowerCase() },
-        data: {
-          lastLogin: currentDate,
-          lastLoginIp: ip,
-        },
-      });
-
-      const properties = AppUtilities.extractProperties(updatedUser);
-
-      const { rest } = properties;
-
-      return {
-        ...rest,
-        accessToken: token,
-        refreshToken,
-      };
+      return await this.googleLoginCallback(user, email, ip);
     } catch (error) {
       throw new BadRequestException(error.message);
     }
+  }
+
+  async googleLoginCallback(user: User, email: string, ip: string) {
+    const jwtPayload: JwtPayload = { email: user.email, userId: user.id };
+    const token: string = await this.jwtService.sign(jwtPayload);
+
+    const refreshToken: string = await this.jwtService.sign(jwtPayload, {
+      secret: this.configService.get('JWT_SECRET'),
+      expiresIn: this.configService.get('JWT_EXPIRES'),
+    });
+
+    const currentDate = moment().toISOString();
+
+    const updatedUser = await this.prisma.user.update({
+      where: { email: email.toLowerCase() },
+      data: {
+        lastLogin: currentDate,
+        lastLoginIp: ip,
+      },
+    });
+
+    const properties = AppUtilities.extractProperties(updatedUser);
+
+    const { rest } = properties;
+
+    return {
+      ...rest,
+      accessToken: token,
+      refreshToken,
+    };
   }
 
   async verifyUser(user: User): Promise<User> {

@@ -1,4 +1,4 @@
-import { ApiResponseMeta } from '../common/decorators/response.decorator';
+import { ApiResponseMeta } from '@@common/decorators/response.decorator';
 import {
   Body,
   Controller,
@@ -14,11 +14,11 @@ import { LoginDto } from './dto/login.dto';
 import { RealIp } from 'nestjs-real-ip';
 import { SendTokenDto } from './dto/send-token.dto';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { API_TAGS } from '../common/interfaces/index';
+import { API_TAGS } from '@@common/interfaces/index';
 import { SignupDto } from './dto/signup.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { User } from '@prisma/client';
-import { GetUser } from '../common/decorators/get-user.decorator';
+import { GetUser } from '@@common/decorators/get-user.decorator';
 import { ForgotPasswordDto } from './dto/reset-password.dto';
 import { UpdatePasswordDto } from './dto/updatePassword.dto';
 import { VerifyTokenDto } from './dto/verify-token.dto';

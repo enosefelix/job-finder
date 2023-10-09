@@ -10,7 +10,7 @@ import { Observable } from 'rxjs';
 @Injectable()
 export class RequestInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const { headers, body, query, url, method } = context
+    const { headers, body, query, url, method, params } = context
       .switchToHttp()
       .getRequest<Request>();
     // simple clean up
@@ -22,6 +22,7 @@ export class RequestInterceptor implements NestInterceptor {
     console.log('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%');
     console.log('URL -->', `${method} ${url}`);
     console.log('headers -->', mHeaders);
+    query && console.log('params -->', params);
     mBody && console.log('body -->', mBody);
     query && console.log('query -->', query);
 

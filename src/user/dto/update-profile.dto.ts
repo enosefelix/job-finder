@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
 
 export class UpdateProfileDto {
   @ApiPropertyOptional()
@@ -11,7 +11,11 @@ export class UpdateProfileDto {
   lastName: string;
 
   @ApiPropertyOptional()
-  @IsNumber()
+  @ValidateIf((obj) => obj.phone !== undefined && obj.phone !== null)
+  @IsOptional()
+  @MaxLength(19, {
+    message: 'Invalid phone number. Valid phone number sample +2347063644568',
+  })
   phone: string;
 
   @ApiPropertyOptional()
@@ -19,9 +23,19 @@ export class UpdateProfileDto {
   @IsOptional()
   profileSummary?: string;
 
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  country?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  state?: string;
+
   @ApiPropertyOptional({ type: 'string', format: 'binary' })
   @IsOptional()
-  profilePicUrl?: Express.Multer.File;
+  profilePic?: Express.Multer.File;
 
   @ApiPropertyOptional()
   @IsString()

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsArray, IsEnum, IsNotEmpty, IsString } from 'class-validator';
-import { JobType } from 'src/common/interfaces';
+import { JobType } from '@@common/interfaces';
 
 export class WorkExperienceDto {
   @ApiProperty()
@@ -14,13 +14,13 @@ export class WorkExperienceDto {
   organization: string;
 
   @ApiProperty()
-  @IsNotEmpty()
   @IsString()
+  @IsNotEmpty()
   startDate: string;
 
   @ApiProperty()
-  @IsNotEmpty()
   @IsString()
+  @IsNotEmpty()
   endDate: string;
 
   @ApiProperty()
