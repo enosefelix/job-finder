@@ -12,6 +12,9 @@ import { CacheService } from '@@common/cache/cache.service';
 import { JwtStrategy } from '@@auth/jwt.strategy';
 import { ConfigService } from '@nestjs/config';
 import { BlogService } from './blog/blog.service';
+import { UserService } from '@@/user/user.service';
+import { BookmarksService } from '@@/user/bookmarks/bookmarks.service';
+import { GoogleStrategy } from '@@/auth/google.strategy';
 
 @Module({
   imports: [
@@ -37,6 +40,9 @@ import { BlogService } from './blog/blog.service';
     MailerService,
     CacheService,
     BlogService,
+    UserService,
+    GoogleStrategy,
+    BookmarksService,
   ],
 })
 export class AdminModule {}

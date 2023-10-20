@@ -7,7 +7,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { JobListing, Prisma, PrismaClient, User } from '@prisma/client';
+import { JobListing, PrismaClient, User } from '@prisma/client';
 import {
   AUTH_ERROR_MSGS,
   Category,
@@ -20,8 +20,6 @@ import {
 } from '@@common/interfaces/index';
 import { PrismaService } from '@@common/prisma/prisma.service';
 import { UsersFilterDto } from './dto/get-users-filter.dto';
-import { CrudService } from '@@common/database/crud.service';
-import { ProfileMapType } from './profile.maptype';
 import { AdminJobListingFilterDto } from '@@admin/dto/admin-job-listing.dto';
 import { JobListingsService } from '@@job-listings/job-listings.service';
 import { AuthService } from '@@auth/auth.service';
@@ -34,12 +32,11 @@ import { CloudinaryService } from '@@cloudinary/cloudinary.service';
 import { CreateJobListingDto } from '@@job-listings/dto/create-job-listing.dto';
 import { UpdateJobListingDto } from '@@job-listings/dto/edit-job.dto';
 import { AppUtilities } from '../app.utilities';
+import { UserService } from '@@/user/user.service';
+import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 
 @Injectable()
-export class AdminService extends CrudService<
-  Prisma.ProfileDelegate<Prisma.RejectOnNotFound>,
-  ProfileMapType
-> {
+export class AdminService {
   private readonly logger = new Logger(JobListingsService.name);
   constructor(
     private prisma: PrismaService,
@@ -48,9 +45,8 @@ export class AdminService extends CrudService<
     private jwtService: JwtService,
     private configService: ConfigService,
     private cloudinaryService: CloudinaryService,
-  ) {
-    super(prisma.profile);
-  }
+    private userService: UserService,
+  ) {}
 
   async login(loginDto: LoginDto, ip: string): Promise<any> {
     try {
@@ -131,58 +127,9 @@ export class AdminService extends CrudService<
     return jobListing;
   }
 
-  async getAllUsers(
-    { cursor, direction, orderBy, size, ...dto }: UsersFilterDto,
-    user: User,
-  ): Promise<User[]> {
+  async getAllUsers(dto: UsersFilterDto, user: User): Promise<User[]> {
     try {
-      await this.authService.verifyUser(user);
-      const parsedQueryFilters = await this.parseQueryFilter(dto, [
-        'email',
-        'firstName',
-        'lastName',
-        {
-          key: 'status',
-          where: (status) => {
-            return {
-              status: {
-                equals: status as USER_STATUS,
-              },
-            };
-          },
-        },
-      ]);
-
-      const args: Prisma.ProfileFindManyArgs = {
-        where: {
-          ...parsedQueryFilters,
-          email: { not: user.email },
-        },
-        select: { user: { include: { profile: true } } },
-      };
-
-      const dataMapperFn = (profile: any) => {
-        if (profile?.User?.email) {
-          delete profile?.User?.password;
-          delete profile?.User?.token;
-          delete profile?.User?.roleId;
-          delete profile?.User?.lastLoginIp;
-          delete profile?.User?.googleId;
-        }
-        return profile;
-      };
-
-      const data = await this.findManyPaginate(
-        args,
-        {
-          cursor,
-          direction,
-          orderBy: orderBy || { createdAt: direction },
-          size,
-        },
-        dataMapperFn,
-      );
-      return data;
+      return this.userService.getAllUsers(dto, user);
     } catch (error) {
       throw new BadRequestException(error.message);
     }
@@ -193,7 +140,21 @@ export class AdminService extends CrudService<
       await this.authService.verifyUser(adminUser);
       const user = await this.prisma.user.findUnique({
         where: { id },
-        include: { profile: true },
+        include: {
+          profile: {
+            include: {
+              technicalSkills: true,
+              languages: true,
+              educationalHistory: true,
+              workExperiences: true,
+              certifications: true,
+              softSkills: true,
+            },
+          },
+          jobListing: true,
+          jobListingApplications: true,
+          bookmarks: true,
+        },
       });
 
       if (!user) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
@@ -237,33 +198,83 @@ export class AdminService extends CrudService<
     }
   }
 
-  async suspendUser(id: string, adminUser: User): Promise<void> {
+  async suspendUser(
+    dto: UpdateUserStatusDto,
+    id: string,
+    adminUser: User,
+  ): Promise<any> {
     try {
       await this.authService.verifyUser(adminUser);
       const user = await this.prisma.user.findUnique({
         where: { id },
       });
 
+      const { status } = dto;
+
       if (!user) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-      await this.prisma.user.update({
-        where: { id },
-        data: {
-          status: USER_STATUS.SUSPENDED,
-          updatedBy: adminUser.id,
-        },
-      });
-      await this.prisma.jobListing.updateMany({
-        where: { createdBy: user.id, status: JOB_LISTING_STATUS.APPROVED },
-        data: {
-          status: JOB_LISTING_STATUS.PENDING,
-          updatedBy: adminUser.id,
-        },
-      });
+      if (
+        status === USER_STATUS.ACTIVE &&
+        user.status === USER_STATUS.SUSPENDED
+      ) {
+        await this.prisma.user.update({
+          where: {
+            id,
+          },
+          data: {
+            status: status as USER_STATUS,
+            updatedBy: adminUser.id,
+          },
+        });
+
+        return { message: 'User Activated Successfully' };
+      } else if (
+        status === USER_STATUS.SUSPENDED &&
+        user.status === USER_STATUS.ACTIVE
+      ) {
+        await this.prisma.user.update({
+          where: { id },
+          data: {
+            status: status as USER_STATUS,
+            updatedBy: adminUser.id,
+          },
+        });
+
+        await this.prisma.jobListing.updateMany({
+          where: { createdBy: user.id, status: JOB_LISTING_STATUS.APPROVED },
+          data: {
+            status: JOB_LISTING_STATUS.PENDING,
+            updatedBy: adminUser.id,
+          },
+        });
+
+        return { message: 'User Suspended Successfully' };
+      }
     } catch (error) {
       throw new BadRequestException(error.message);
     }
   }
+
+  // async unsuspendUser(id: string, adminUser: User): Promise<void> {
+  //   try {
+  //     await this.authService.verifyUser(adminUser);
+  //     const user = await this.prisma.user.findUnique({
+  //       where: { id },
+  //     });
+
+  //     if (!user) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+
+  //     await this.prisma.user.update({
+  //       where: { id },
+  //       data: {
+  //         status: USER_STATUS.ACTIVE,
+  //         updatedBy: adminUser.id,
+  //       },
+  //     });
+  //   } catch (error) {
+  //     throw new BadRequestException(error.message);
+  //   }
+  // }
 
   async deleteUser(id: string, adminUser: User): Promise<void> {
     try {

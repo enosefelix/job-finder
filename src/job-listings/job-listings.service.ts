@@ -60,6 +60,7 @@ export class JobListingsService extends CrudService<
       const parsedQueryFilters = await this.parseQueryFilter(dto, [
         'title',
         'industry',
+        'companyName',
         {
           key: 'location',
           where: (location) => ({
@@ -149,6 +150,8 @@ export class JobListingsService extends CrudService<
             },
           },
         },
+        taggedUsers: true,
+        bookmarks: true,
         postedBy: { select: { id: true, email: true, status: true } },
         approvedBy: { select: { id: true, email: true, status: true } },
       },
@@ -195,7 +198,7 @@ export class JobListingsService extends CrudService<
           postedBy: { connect: { email: user.email } },
           skills,
           languages,
-          status: JOB_LISTING_STATUS.PENDING,
+          status: JOB_LISTING_STATUS.APPROVED,
         },
       });
 
@@ -231,7 +234,7 @@ export class JobListingsService extends CrudService<
 
       this.logger.debug('Saving resume and cover letter to cloud...');
       const uploadResume: any = resume
-        ? await this.cloudinaryService.uploadResume(
+        ? this.cloudinaryService.uploadResume(
             resume,
             ResourceType.Raw,
             url,
@@ -239,7 +242,7 @@ export class JobListingsService extends CrudService<
           )
         : null;
       const uploadCoverLetter: any = coverLetter
-        ? await this.cloudinaryService.uploadCoverLetter(
+        ? this.cloudinaryService.uploadCoverLetter(
             coverLetter,
             ResourceType.Raw,
             url,
@@ -251,27 +254,45 @@ export class JobListingsService extends CrudService<
         uploadCoverLetter,
       ]);
 
-      resumeUrl = resumeUrl?.public_id || '';
-      coverLetterUrl = coverLetterUrl?.public_id || '';
+      resumeUrl = resumeUrl?.secure_url || '';
+      coverLetterUrl = coverLetterUrl?.secure_url || '';
 
       this.logger.debug('Files saved to the cloud successfully');
 
-      const jobApplication = await this.prisma.jobListingApplications.create({
-        data: {
-          resume: resumeUrl,
-          coverLetter: coverLetterUrl,
-          possibleStartDate,
-          jobListing: { connect: { id: jobListing.id } },
-          user: { connect: { id: user.id } },
-          createdBy: user.id,
-        },
-        include: {
-          user: {
-            select: { profile: true },
-          },
-          jobListing: true,
-        },
-      });
+      const findJobApplication =
+        await this.prisma.jobListingApplications.findFirst({
+          where: { userId: user.id, jobListingId: id },
+        });
+
+      const jobApplicationData = {
+        resume: resumeUrl,
+        coverLetter: coverLetterUrl,
+        possibleStartDate,
+        jobListing: { connect: { id: jobListing.id } },
+        user: { connect: { id: user.id } },
+        createdBy: user.id,
+      };
+
+      const jobApplication = !findJobApplication
+        ? await this.prisma.jobListingApplications.create({
+            data: jobApplicationData,
+            include: {
+              user: {
+                select: { profile: true },
+              },
+              jobListing: true,
+            },
+          })
+        : await this.prisma.jobListingApplications.update({
+            where: { id: findJobApplication.id },
+            data: jobApplicationData,
+            include: {
+              user: {
+                select: { profile: true },
+              },
+              jobListing: true,
+            },
+          });
 
       return {
         message: 'Job Listing applied successfully!',

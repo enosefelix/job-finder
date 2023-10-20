@@ -1,12 +1,23 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { MailerService as NestMailerService } from '@nestjs-modules/mailer';
 import { PrismaService } from '@@common/prisma/prisma.service';
-import { AppUtilities } from '../app.utilities';
-import * as moment from 'moment';
 import { CacheService } from '@@common/cache/cache.service';
+import { CacheKeysEnums } from '@@/common/cache/cache.enums';
+import { v4 } from 'uuid';
+import { readFileSync } from 'fs';
+import handlebars from 'handlebars';
+import { AppUtilities } from '@@/app.utilities';
+import { TEMPLATE } from './interfaces';
 
 @Injectable()
 export class MailerService {
+  logger = new Logger(MailerService.name);
+
   constructor(
     private mailerService: NestMailerService,
     private prisma: PrismaService,
@@ -15,102 +26,86 @@ export class MailerService {
 
   async sendUpdateEmail(email: string) {
     try {
-      const generateToken = AppUtilities.generateToken(6);
-
-      const token = generateToken.join('');
-      console.log(
-        '🚀 ~ file: mailer.service.ts:21 ~ MailerService ~ sendUpdateEmail ~ token:',
-        token,
-      );
-
       const foundUser = await this.prisma.user.findUnique({
         where: { email },
         include: { profile: true },
       });
-      const tokenExpires = parseInt(process.env.TOKEN_EXPIRES) || 5;
+      const requestId = v4();
 
-      const hashedToken = await AppUtilities.hasher(token);
-
-      await this.prisma.user.update({
-        where: { email },
-        data: {
-          tokenExpiresIn: moment().add(tokenExpires, 'minutes').toDate(),
-          token: hashedToken,
+      await this.cacheService.set(
+        CacheKeysEnums.REQUESTS + requestId,
+        {
+          email,
+          userId: foundUser.id,
         },
-      });
+        parseInt(process.env.PASSWORD_RESET_EXPIRES),
+      );
 
-      await this.cacheService.set(token, email, 10 * 60);
+      const resetUrl = new URL(
+        `${process.env.FRONTENDURL}/pages/auth/reset-password/${requestId}`,
+      );
 
-      const fullName = `${foundUser.profile.firstName} ${foundUser.profile.lastName}`;
-      const emailMessage = await this.updateEmailMessage(token, email);
+      const firstName = foundUser.profile.firstName,
+        lastName = foundUser.profile.lastName;
 
-      await this.mailerService.sendMail({
-        to: email,
-        subject: 'Reset Password',
-        html: emailMessage,
+      const fullName = `${firstName} ${lastName}`;
+      const imagePath =
+        'aHR0cHM6Ly9yZXMuY2xvdWRpbmFyeS5jb20vZGpta3l4eGJjL2ltYWdlL3VwbG9hZC92MTY5NzYxNDYzOC9kZXZlbG9wbWVudC9odHRwczp3aGFsZS1hcHAtd3E3aGMub25kaWdpdGFsb2NlYW4uYXBwL2ltYWdlcy9tYWlsLWltYWdlcy9pLVdvcmstaW4tQWZyaWthX3Z5MXM4ei5wbmc=';
+      const mailServicePayload = {
         context: {
           fullName,
-          token,
+          resetUrl,
+          email: foundUser.email,
+          imagePath: AppUtilities.decode(imagePath),
         },
-      });
+        email: foundUser.email,
+        templateName: TEMPLATE.RESET_MAIL,
+        subject: 'Reset Password',
+      };
+
+      this.logger.debug(`Sending reset link mail...`);
+      await this.sendMail(mailServicePayload);
+      this.logger.debug(`Mail sent!`);
 
       return;
     } catch (error) {
+      if (
+        error.message ===
+          'Client network socket disconnected before secure TLS connection was established' ||
+        error.message === 'getaddrinfo ENOTFOUND smtp.gmail.com'
+      )
+        throw new ServiceUnavailableException(
+          "Network Error, make sure you're connected to the internet",
+        );
       throw new BadRequestException(error.message);
     }
   }
 
-  async updateEmailMessage(
-    updateToken: string,
-    email: string,
-  ): Promise<string> {
-    try {
-      const user = await this.prisma.user.findUnique({
-        where: { email },
-        select: { profile: { select: { firstName: true, lastName: true } } },
-      });
+  async sendMail(payload: any) {
+    const buildEmailTemplate = (templateName: string) => {
+      return handlebars.compile(
+        readFileSync(
+          `src/mailer/public/templates/${templateName}.hbs`,
+          'utf-8',
+        ),
+      );
+    };
 
-      const message = `
-  <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <style>
-      section {
-        font-family:"Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", sans-serif;
-        color: #24557D;
-        font-weight: 700;
-        line-height: 3;
-      }
-      .contact-link {
-        text-decoration: none;
-        color: #35D1BE;
-      }
-      .token {
-        color: black;
-        font-size: xx-large;
-      }
-    </style>
-  </head>
-  <body>
-    <section>
-      <p>Hello ${user.profile.firstName} ${user.profile.lastName},<br>
-      We've received a request to reset the password for the Job Finder
-      account associated with <a class="contact-link" href="mailto:${email}">${email}</a>. No changes
-      have been made to your account yet.<br>
-      Do not share this token with anyone.<br>
-      You can update your password by using the token below:
-      <br>
-      <b class= "token">${updateToken}</b>
-    </p>
-    </section>
-  </body>
-  </html>
-`;
+    const emailTemplate = buildEmailTemplate('reset-password')(payload.context);
 
-      return message;
-    } catch (error) {
-      throw new BadRequestException(error.message);
-    }
+    const mailOptions = {
+      to: payload.email,
+      subject: payload.subject,
+      attachments: [
+        // {
+        //   filename: 'i-Work-in-Afrika.jpg',
+        //   path: imagePath,
+        //   cid: 'i-Work-in-Afrika_u1xcki',
+        // },
+      ],
+      html: emailTemplate,
+    };
+
+    return this.mailerService.sendMail(mailOptions);
   }
 }

@@ -8,6 +8,7 @@ import { JwtStrategy } from '@@/auth/jwt.strategy';
 import { CacheService } from '@@/common/cache/cache.service';
 import { MailerService } from '@@/mailer/mailer.service';
 import { CloudinaryService } from '@@/cloudinary/cloudinary.service';
+import { GoogleStrategy } from '@@/auth/google.strategy';
 @Module({
   controllers: [BlogController],
   providers: [
@@ -17,6 +18,7 @@ import { CloudinaryService } from '@@/cloudinary/cloudinary.service';
     JwtService,
     JwtStrategy,
     MailerService,
+    GoogleStrategy,
     CacheService,
     CloudinaryService,
   ],

@@ -15,6 +15,9 @@ import {
   differenceInCalendarYears,
 } from 'date-fns';
 import * as moment from 'moment';
+import { customAlphabet } from 'nanoid';
+const CUSTOM_CHARS =
+  '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 @Injectable()
 export class AppUtilities {
@@ -129,15 +132,6 @@ export class AppUtilities {
     const saltOrRounds = 10;
     const hashedPassword = bcrypt.hash(string, saltOrRounds);
     return hashedPassword;
-  }
-
-  public static generateToken(length: number): number[] {
-    const token: number[] = [];
-    for (let i = 0; i < length; i++) {
-      const randomNumber = Math.floor(Math.random() * 10); // Generate a random number between 0 and 9
-      token.push(randomNumber);
-    }
-    return token;
   }
 
   public static generateRandomString(length: number): string {
@@ -496,10 +490,8 @@ export class AppUtilities {
     const propertyMappings = {
       password: 'pwd',
       roleId: 'rlId',
-      token: 'tkn',
       googleId: 'gId',
       lastLoginIp: 'llIp',
-      tokenExpiresIn: 'tknExpIn',
     };
 
     for (const key in user) {
@@ -528,5 +520,11 @@ export class AppUtilities {
     const minutes = Number(Math.ceil(wordCount / wordsPerMinute));
 
     return minutes <= 1 ? `${minutes} minute read` : `${minutes} minutes read`;
+  }
+
+  public static generateShortCode(charLen = 6): string {
+    const nanoid = customAlphabet(CUSTOM_CHARS, charLen);
+
+    return nanoid();
   }
 }

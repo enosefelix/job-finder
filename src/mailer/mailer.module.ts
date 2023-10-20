@@ -6,6 +6,7 @@ import { MailerController } from './mailer.controller';
 import { PrismaService } from '@@common/prisma/prisma.service';
 import { CacheService } from '@@common/cache/cache.service';
 import { CacheModule } from '@nestjs/cache-manager';
+import { JwtService } from '@nestjs/jwt';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { CacheModule } from '@nestjs/cache-manager';
           maxConnections: 10,
         },
         defaults: {
-          from: '"no-reply" <no-reply@robot-mail.com>',
+          from: '"IWIA" <no-reply@mailer.com>',
         },
       }),
       inject: [ConfigService],
@@ -32,7 +33,7 @@ import { CacheModule } from '@nestjs/cache-manager';
     CacheModule.register({}),
   ],
   controllers: [MailerController],
-  providers: [MailerService, PrismaService, CacheService],
+  providers: [MailerService, PrismaService, CacheService, JwtService],
   exports: [MailerService],
 })
 export class MailerModule {}

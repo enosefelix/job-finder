@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { Category, ExperienceLevel, JobType } from '@@common/interfaces';
 
 export class UpdateJobListingDto {
@@ -20,6 +26,7 @@ export class UpdateJobListingDto {
 
   @ApiProperty()
   @IsArray()
+  @IsOptional()
   jobResponsibilities: string[];
 
   @ApiProperty()
@@ -55,20 +62,25 @@ export class UpdateJobListingDto {
   @IsString()
   location: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Health Insurance, Paid Time Off',
+  })
   @IsArray()
+  @IsOptional()
   benefits: string[];
 
   @ApiProperty({
     description: 'English, Spanish',
   })
   @IsArray()
+  @IsOptional()
   languages: string[];
 
   @ApiProperty({
     description: 'Nodejs, MongoDB',
   })
   @IsArray()
+  @IsOptional()
   skills: string[];
 
   @ApiProperty({

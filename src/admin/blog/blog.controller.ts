@@ -4,7 +4,6 @@ import { BlogFilterDto } from './dto/blog-filter.dto';
 import { ApiResponseMeta } from '@@/common/decorators/response.decorator';
 import { ApiTags } from '@nestjs/swagger';
 import { API_TAGS } from '@@/common/interfaces';
-import { User } from '@prisma/client';
 
 @ApiTags(API_TAGS.BLOGS)
 @Controller('blogs')
@@ -19,7 +18,7 @@ export class BlogController {
 
   @ApiResponseMeta({ message: 'Fetched Blog Successfully' })
   @Get('/:id')
-  async getMyBlog(@Param('id') id: string, user: User) {
-    return this.blogService.getMyBlog(id, user);
+  async getBlog(@Param('id') id: string) {
+    return this.blogService.getBlog(id);
   }
 }

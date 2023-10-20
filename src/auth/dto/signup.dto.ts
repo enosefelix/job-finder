@@ -25,10 +25,13 @@ export class SignupDto {
   @ApiProperty()
   @IsNotEmpty()
   @IsString()
-  @Matches(/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d]*$/, {
-    message:
-      'Password is too weak! It must contain at least one uppercase letter, one lowercase letter, and one number.',
-  })
+  @Matches(
+    /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d!@#$%^&*()_+\-=\[\]{}|;':",.<>?/]*$/,
+    {
+      message:
+        'Password is too weak! It must contain at least one uppercase letter, one lowercase letter, and one number',
+    },
+  )
   public password: string;
 
   @ApiProperty()

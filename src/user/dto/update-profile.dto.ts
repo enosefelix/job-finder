@@ -3,10 +3,12 @@ import { IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
 
 export class UpdateProfileDto {
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   firstName: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   lastName: string;
 
@@ -33,10 +35,6 @@ export class UpdateProfileDto {
   @IsOptional()
   state?: string;
 
-  @ApiPropertyOptional({ type: 'string', format: 'binary' })
-  @IsOptional()
-  profilePic?: Express.Multer.File;
-
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
@@ -51,6 +49,11 @@ export class UpdateProfileDto {
   @IsString()
   @IsOptional()
   facebookLink?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  linkedinLink?: string;
 
   @ApiPropertyOptional()
   @IsString()

@@ -1,3 +1,6 @@
+import { JwtPayload } from '@@/auth/payload/jwt.payload.interface';
+import { Request } from 'express';
+
 export enum USER_STATUS {
   ACTIVE = 'Active',
   INACTIVE = 'Inactive',
@@ -85,7 +88,7 @@ export enum JOB_LISTING_STATUS {
 
 export enum AUTH_ERROR_MSGS {
   USER_NOT_FOUND = 'User not found',
-  CREDENTIALS_DONT_MATCH = 'Crendentials do not match any records',
+  CREDENTIALS_DONT_MATCH = 'Crendentials do not match any of our records',
   INVALID_CREDENTIALS = 'Invalid Credentials',
   GOOGLE_LOGIN_ERROR = 'You signed up with Google. Please use Google login.',
   ALREADY_EXIST = 'User already exists, login',
@@ -96,9 +99,7 @@ export enum AUTH_ERROR_MSGS {
   SUSPENDED_ACCOUNT = 'Your account has been suspended, if you think this is a mistake, contact support',
   GOOGLE_CANNOT_RESET = 'Google signedUp users cannot reset password',
   FORBIDDEN = 'You cannot perform this action',
-  INVALID_TOKEN = 'Invalid Token',
-  EXPIRED_TOKEN = 'Token has expired',
-  VALID_TOKEN = 'Valid Token',
+  EXPIRED_LINK = 'Link has expired',
   INVALID_OLD_PASSWORD = 'Invalid old password',
   SAME_PASSWORD_ERROR = 'New and old password cannot be the same',
 }
@@ -126,3 +127,9 @@ export enum VALIDATION_ERROR_MSG {
 }
 
 export enum ADMIN_ERROR_MSGS {}
+
+export interface RequestWithUser extends Request {
+  user: JwtPayload;
+  permittedFields?: any;
+  selectFields?: any;
+}

@@ -10,6 +10,9 @@ import { AuthService } from '@@/auth/auth.service';
 import { MailerService } from '@@/mailer/mailer.service';
 import { CacheService } from '@@/common/cache/cache.service';
 import { JwtService } from '@nestjs/jwt';
+import { JobListingApplicationsService } from '@@/job-listing-applications/job-listing-applications.service';
+import { BookmarksService } from './bookmarks/bookmarks.service';
+import { GoogleStrategy } from '@@/auth/google.strategy';
 
 @Module({
   imports: [PassportModule.register({ defaultStrategy: 'jwt' })],
@@ -22,7 +25,10 @@ import { JwtService } from '@nestjs/jwt';
     AuthService,
     MailerService,
     CacheService,
+    GoogleStrategy,
     JwtService,
+    JobListingApplicationsService,
+    BookmarksService,
   ],
 })
 export class UserModule {}

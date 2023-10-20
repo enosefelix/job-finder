@@ -21,6 +21,11 @@ import { ProfileModule } from './user/profile/profile.module';
 import { PassportModule } from '@nestjs/passport';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { BlogModule } from './admin/blog/blog.module';
+import { JobListingApplicationsModule } from './job-listing-applications/job-listing-applications.module';
+import { BookmarksModule } from './user/bookmarks/bookmarks.module';
+import { GoogleStrategy } from './auth/google.strategy';
+import { join } from 'path';
+import { ServeStaticModule } from '@nestjs/serve-static';
 
 @Module({
   imports: [
@@ -33,6 +38,7 @@ import { BlogModule } from './admin/blog/blog.module';
       },
     ]),
     JobListingsModule,
+    BlogModule,
     AdminModule,
     MailerModule,
     CloudinaryModule,
@@ -77,7 +83,11 @@ import { BlogModule } from './admin/blog/blog.module';
     UserModule,
     ProfileModule,
     PassportModule.register({ isGlobal: true, defaultStrategy: 'jwt' }),
-    BlogModule,
+    JobListingApplicationsModule,
+    BookmarksModule,
+    ServeStaticModule.forRoot({
+      rootPath: join('src/mailer/public/images'),
+    }),
   ],
   controllers: [HealthController],
   providers: [
@@ -86,6 +96,7 @@ import { BlogModule } from './admin/blog/blog.module';
     JwtStrategy,
     CacheService,
     MailerService,
+    GoogleStrategy,
     {
       provide: 'APP_GUARD',
       useClass: ThrottlerGuard,

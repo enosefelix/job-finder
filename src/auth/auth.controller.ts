@@ -6,22 +6,23 @@ import {
   ValidationPipe,
   UseGuards,
   Get,
-  Req,
   Patch,
+  Param,
+  Request,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RealIp } from 'nestjs-real-ip';
-import { SendTokenDto } from './dto/send-token.dto';
+import { SendResetLinkDto } from './dto/send-reset-link.dto';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { API_TAGS } from '@@common/interfaces/index';
 import { SignupDto } from './dto/signup.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { User } from '@prisma/client';
 import { GetUser } from '@@common/decorators/get-user.decorator';
-import { ForgotPasswordDto } from './dto/reset-password.dto';
 import { UpdatePasswordDto } from './dto/updatePassword.dto';
-import { VerifyTokenDto } from './dto/verify-token.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { GoogleGuard } from '@@/common/guards/oauth.guard';
 
 @ApiTags(API_TAGS.AUTH)
 // @UsePipes(new ValidationPipe())
@@ -44,24 +45,25 @@ export class AuthController {
     return this.authService.login(dto, ip);
   }
 
-  @ApiResponseMeta({ message: 'Email sent successfully, check mail for otp' })
-  @Post('auth/forgot-password')
-  async sendMail(@Body(ValidationPipe) dto: SendTokenDto): Promise<any> {
+  @ApiResponseMeta({
+    message:
+      'We have sent an email to the email registered with this account containing further instructions to reset your password!',
+  })
+  @Post('auth/request-password-reset')
+  async sendMail(@Body(ValidationPipe) dto: SendResetLinkDto): Promise<any> {
     return this.authService.sendMail(dto);
   }
 
-  @Post('auth/verify-token')
-  async verifyToken(@Body() token: VerifyTokenDto) {
-    return this.authService.verifyToken(token);
-  }
-
   @ApiResponseMeta({ message: 'Password Reset Successfully' })
-  @Post('auth/reset-password')
-  async resetPasword(@Body() dto: ForgotPasswordDto): Promise<any> {
-    return this.authService.resetPassword(dto);
+  @ApiBearerAuth()
+  @Patch('pages/auth/reset-password/:requestId')
+  async resetPassword(
+    @Param('requestId') requestId: string,
+    @Body() dto: ResetPasswordDto,
+  ) {
+    return this.authService.resetPassword(requestId, dto);
   }
 
-  @ApiBearerAuth()
   @ApiResponseMeta({ message: 'Password Updated Successfully' })
   @UseGuards(AuthGuard())
   @Patch('auth/change-password')
@@ -73,13 +75,21 @@ export class AuthController {
   }
 
   @Get()
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleGuard)
   // eslint-disable-next-line @typescript-eslint/no-empty-function, @typescript-eslint/no-unused-vars
-  async googleAuth(@Req() req) {}
+  async googleAuth() {}
 
   @Get('/google/redirect')
-  @UseGuards(AuthGuard('google'))
-  googleAuthRedirect(@Req() req, @RealIp() ip: string) {
-    return this.authService.googleLogin(req, ip);
+  @UseGuards(GoogleGuard)
+  googleAuthRedirect(@Request() req: any) {
+    return this.authService.googleLogin(req);
+  }
+
+  @Post('/google-auth')
+  googleSignupOrLogin(
+    @Body() { access_token }: { access_token: string },
+    @RealIp() ip: string,
+  ) {
+    return this.authService.googleClientAuth(access_token, ip);
   }
 }

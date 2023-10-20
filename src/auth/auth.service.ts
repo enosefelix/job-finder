@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotAcceptableException,
   NotFoundException,
@@ -18,16 +17,19 @@ import {
   ROLE_TYPE,
   USER_STATUS,
 } from '@@common/interfaces/index';
-import { SendTokenDto } from './dto/send-token.dto';
+import { SendResetLinkDto } from './dto/send-reset-link.dto';
 import * as moment from 'moment';
 import { AppUtilities } from '../app.utilities';
 import { SignupDto } from './dto/signup.dto';
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
 import { MailerService } from '@@mailer/mailer.service';
-import { ForgotPasswordDto } from './dto/reset-password.dto';
 import { UpdatePasswordDto } from './dto/updatePassword.dto';
 import { CacheService } from '@@common/cache/cache.service';
-import { VerifyTokenDto } from './dto/verify-token.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { CacheKeysEnums } from '@@/common/cache/cache.enums';
+import { GoogleAuthDto } from './dto/google-auth.dto';
+import { GoogleStrategy } from './google.strategy';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -36,6 +38,7 @@ export class AuthService {
     private jwtService: JwtService,
     private mailerService: MailerService,
     private cacheService: CacheService,
+    private googleStrategy: GoogleStrategy,
   ) {}
 
   async signup(signupDto: SignupDto): Promise<any> {
@@ -43,6 +46,7 @@ export class AuthService {
       // eslint-disable-next-line prefer-const
       let { email, password, firstName, lastName, confirmPassword } = signupDto;
       email = email.toLowerCase();
+
       const findUser = await this.prisma.user.findUnique({
         where: { email },
       });
@@ -59,6 +63,12 @@ export class AuthService {
       }
 
       const hashedPassword = await AppUtilities.hasher(password);
+
+      const role = await this.prisma.role.findFirst({
+        where: { code: ROLE_TYPE.USER },
+      });
+
+      if (!role) throw new NotFoundException('Roles not setup');
 
       const user = await this.prisma.user.create({
         data: {
@@ -163,7 +173,7 @@ export class AuthService {
     response.clearCookie('refreshToken');
   }
 
-  async sendMail(forgotPassDto: SendTokenDto): Promise<any> {
+  async sendMail(forgotPassDto: SendResetLinkDto): Promise<any> {
     try {
       const { email } = forgotPassDto;
 
@@ -175,9 +185,6 @@ export class AuthService {
       if (foundUser.googleId)
         throw new UnauthorizedException(AUTH_ERROR_MSGS.GOOGLE_CANNOT_RESET);
 
-      if (foundUser.id !== foundUser.id)
-        throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
-
       const sendMail = await this.mailerService.sendUpdateEmail(email);
 
       return sendMail;
@@ -186,82 +193,35 @@ export class AuthService {
     }
   }
 
-  async verifyToken({ token }: VerifyTokenDto): Promise<string> {
-    try {
-      const email = await this.cacheService.get(token);
+  async resetPassword(requestId: string, resetPasswordDto: ResetPasswordDto) {
+    const tokenData = await this.cacheService.get(
+      CacheKeysEnums.REQUESTS + requestId,
+    );
 
-      if (!email) throw new BadRequestException(AUTH_ERROR_MSGS.INVALID_TOKEN);
-
-      const user = await this.prisma.user.findUnique({ where: { email } });
-
-      const storedSalt = user.token;
-      const hashedProvidedTokenWithSalt = await AppUtilities.validator(
-        token,
-        storedSalt,
-      );
-
-      const currentDate = moment().toISOString();
-      if (!hashedProvidedTokenWithSalt)
-        throw new BadRequestException('Invalid Token');
-
-      if (user.tokenExpiresIn.toISOString() < currentDate)
-        throw new BadRequestException(AUTH_ERROR_MSGS.EXPIRED_TOKEN);
-
-      return AUTH_ERROR_MSGS.VALID_TOKEN;
-    } catch (error) {
-      throw new BadRequestException(error.message);
+    if (!tokenData) {
+      throw new BadRequestException(AUTH_ERROR_MSGS.EXPIRED_LINK);
     }
+
+    const { newPassword, confirmNewPassword } = resetPasswordDto;
+
+    const hashedPassword = await AppUtilities.hasher(newPassword);
+
+    if (newPassword !== confirmNewPassword)
+      throw new NotAcceptableException(AUTH_ERROR_MSGS.PASSWORD_MATCH);
+
+    const dto: Prisma.UserUpdateArgs = {
+      where: { email: tokenData.email },
+      data: {
+        password: hashedPassword,
+        updatedBy: tokenData.userId,
+      },
+    };
+
+    const updatedUser = await this.prisma.user.update(dto);
+
+    await this.cacheService.remove(CacheKeysEnums.REQUESTS + requestId);
+    return updatedUser;
   }
-
-  async resetPassword(dto: ForgotPasswordDto): Promise<any> {
-    try {
-      const { token, newPassword, confirmNewPassword } = dto;
-
-      // Run the verify token function
-      await this.verifyToken({ token });
-
-      const email = await this.cacheService.get(token);
-
-      if (!email) throw new BadRequestException(AUTH_ERROR_MSGS.INVALID_TOKEN);
-
-      const user = await this.prisma.user.findUnique({ where: { email } });
-
-      const currentDate = moment().toISOString();
-
-      if (user.tokenExpiresIn.toISOString() < currentDate)
-        throw new BadRequestException(AUTH_ERROR_MSGS.EXPIRED_TOKEN);
-
-      if (!user) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
-
-      if (newPassword !== confirmNewPassword)
-        throw new NotAcceptableException(AUTH_ERROR_MSGS.PASSWORD_MATCH);
-
-      const hashedPassword = await AppUtilities.hasher(newPassword);
-
-      const updatedPassword = await this.prisma.user.update({
-        where: { email },
-        data: {
-          password: hashedPassword,
-          updatedBy: user.id,
-          token: null,
-          tokenExpiresIn: null,
-        },
-      });
-
-      await this.cacheService.remove(token);
-
-      const properties = AppUtilities.extractProperties(updatedPassword);
-
-      const { rest } = properties;
-
-      return {
-        user: rest,
-      };
-    } catch (error) {
-      throw new BadRequestException(error.message);
-    }
-  }
-
   async updatePassword(dto: UpdatePasswordDto, user: User): Promise<any> {
     try {
       const { oldPassword, newPassword, confirmNewPassword } = dto;
@@ -308,60 +268,69 @@ export class AuthService {
     }
   }
 
-  async googleLogin(req, ip: string): Promise<any> {
+  async findOrCreateUser(dto: GoogleAuthDto, accessToken: string) {
+    let user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      include: { profile: true },
+    });
+
+    const role = await this.prisma.role.findUnique({
+      where: {
+        code: ROLE_TYPE.USER,
+      },
+    });
+
+    if (!role) throw new NotFoundException('Roles not setup');
+
+    let password = await AppUtilities.generateShortCode(10);
+
+    password = await AppUtilities.hasher(password);
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          email: dto.email,
+          password,
+          role: { connect: { code: ROLE_TYPE.USER } },
+          googleId: accessToken,
+          profile: {
+            create: {
+              firstName: dto.firstName,
+              lastName: dto.lastName,
+              email: dto.email,
+              profilePic: dto.picture,
+            },
+          },
+        },
+        include: { profile: true },
+      });
+    }
+    delete user.password;
+    return user;
+  }
+
+  async googleLogin(req: any): Promise<any> {
     try {
       if (!req.user) {
         return 'No user from google';
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { email, firstName, lastName, accessToken } = req.user;
 
-      const user = await this.prisma.user.findUnique({
-        where: { email },
-      });
+      const user = await this.findOrCreateUser(req.user, accessToken);
 
-      if (!user) {
-        const newUser = await this.prisma.user.create({
-          data: {
-            email,
-            password: '',
-            role: { connect: { code: ROLE_TYPE.USER } },
-            googleId: accessToken,
-            profile: {
-              create: {
-                firstName,
-                lastName,
-                email,
-              },
-            },
-          },
-          include: { profile: true },
-        });
+      const access_token: string = await this.generateAccessToken(user);
+      const refreshToken: string = await this.generateRefreshToken(user);
 
-        await this.prisma.user.update({
-          where: { email: email.toLowerCase() },
-          data: {
-            profileId: newUser.profile.id,
-          },
-        });
-
-        return await this.googleLoginCallback(newUser, email, ip);
-      }
-
-      return await this.googleLoginCallback(user, email, ip);
+      return { user, accessToken: access_token, refreshToken };
     } catch (error) {
       throw new BadRequestException(error.message);
     }
   }
-
   async googleLoginCallback(user: User, email: string, ip: string) {
-    const jwtPayload: JwtPayload = { email: user.email, userId: user.id };
-    const token: string = await this.jwtService.sign(jwtPayload);
-
-    const refreshToken: string = await this.jwtService.sign(jwtPayload, {
-      secret: this.configService.get('JWT_SECRET'),
-      expiresIn: this.configService.get('JWT_EXPIRES'),
-    });
+    const token: string = await this.generateAccessToken(user);
+    const refreshToken: string = await this.generateRefreshToken(user);
 
     const currentDate = moment().toISOString();
 
@@ -384,11 +353,48 @@ export class AuthService {
     };
   }
 
+  async googleClientAuth(accessToken: string, ip: string): Promise<any> {
+    try {
+      const googleUser = await this.googleStrategy.clientValidate(accessToken);
+      const user = await this.findOrCreateUser(googleUser, accessToken);
+
+      const token: string = await this.generateAccessToken(user);
+      const refreshToken: string = await this.generateRefreshToken(user);
+
+      const currentDate = moment().toISOString();
+
+      const updatedUser = await this.prisma.user.update({
+        where: { googleId: user.googleId },
+        data: {
+          lastLogin: currentDate,
+          lastLoginIp: ip,
+        },
+      });
+
+      return { updatedUser, accessToken: token, refreshToken };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
   async verifyUser(user: User): Promise<User> {
     const foundUser = this.prisma.user.findUnique({ where: { id: user.id } });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
     return foundUser;
+  }
+
+  async generateAccessToken(user: User) {
+    const jwtPayload: JwtPayload = { email: user.email, userId: user.id };
+    return await this.jwtService.signAsync(jwtPayload);
+  }
+
+  async generateRefreshToken(user: User) {
+    const jwtPayload: JwtPayload = { email: user.email, userId: user.id };
+    return await this.jwtService.sign(jwtPayload, {
+      secret: this.configService.get('JWT_SECRET'),
+      expiresIn: this.configService.get('JWT_EXPIRES'),
+    });
   }
 }

@@ -1,6 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import {
+  BadRequestException,
+  INestApplication,
+  ValidationError,
+  ValidationPipe,
+} from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { RequestInterceptor } from './common/interceptors/request.interceptor';
 import { ConfigService } from '@nestjs/config';
@@ -37,8 +42,26 @@ async function bootstrap() {
     new ResponseInterceptor(),
     new ErrorsInterceptor(),
   );
+
   app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      validationError: {
+        target: false,
+        value: false,
+      },
+      exceptionFactory: (validationErrors: ValidationError[] = []) =>
+        new BadRequestException(
+          validationErrors.reduce(
+            (errorObj, validationList) => ({
+              ...errorObj,
+              [validationList.property]: validationList,
+            }),
+            {},
+          ),
+        ),
+    }),
   );
 
   app.enableCors();

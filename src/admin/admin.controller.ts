@@ -25,7 +25,6 @@ import { AdminJobListingFilterDto } from './dto/admin-job-listing.dto';
 import { ApiResponseMeta } from '@@common/decorators/response.decorator';
 import { UpdateJobListingDto } from '@@job-listings/dto/edit-job.dto';
 import { CreateJobListingDto } from '@@job-listings/dto/create-job-listing.dto';
-import { AuthService } from '@@auth/auth.service';
 import { RealIP } from 'nestjs-real-ip';
 import { LoginDto } from '@@auth/dto/login.dto';
 import { BlogService } from './blog/blog.service';
@@ -33,6 +32,7 @@ import { CreateBlogDto } from './blog/dto/create-blog.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
 import { BlogFilterDto } from './blog/dto/blog-filter.dto';
+import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 
 @ApiBearerAuth()
 @ApiTags(API_TAGS.ADMIN)
@@ -41,7 +41,6 @@ import { BlogFilterDto } from './blog/dto/blog-filter.dto';
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
-    private readonly authService: AuthService,
     private readonly blogService: BlogService,
   ) {}
 
@@ -70,12 +69,22 @@ export class AdminController {
     return this.adminService.getUserJobListing(id, user);
   }
 
-  @ApiResponseMeta({ message: 'User Suspended Successfully' })
-  @Patch('/user/:id/suspend')
+  @Patch('/user/:id/update-user-status')
   @UseGuards(AdminAuthGuard)
-  async suspendUser(@Param('id') id: string, @GetUser() user: User) {
-    return this.adminService.suspendUser(id, user);
+  async suspendUser(
+    @Body() dto: UpdateUserStatusDto,
+    @Param('id') id: string,
+    @GetUser() user: User,
+  ) {
+    return this.adminService.suspendUser(dto, id, user);
   }
+
+  // @ApiResponseMeta({ message: 'User Activated Successfully' })
+  // @Patch('/user/:id/unsuspend')
+  // @UseGuards(AdminAuthGuard)
+  // async unsuspendUser(@Param('id') id: string, @GetUser() user: User) {
+  //   return this.adminService.unsuspendUser(id, user);
+  // }
 
   @ApiResponseMeta({ message: 'User Deleted Successfully' })
   @Delete('/user/:id/delete')
@@ -109,14 +118,14 @@ export class AdminController {
   }
 
   @ApiResponseMeta({ message: 'Job Listing Approved Successfully' })
-  @Patch('/approve/:id/job-listings')
+  @Patch('/job-listings/:id/approve')
   @UseGuards(AdminAuthGuard)
   async approveJobListing(@Param('id') id: string, @GetUser() user: User) {
     return this.adminService.approveJobListing(id, user);
   }
 
   @ApiResponseMeta({ message: 'Job Listing Denied Successfully' })
-  @Patch('/reject/:id/job-listings')
+  @Patch('/job-listing/:id/reject')
   @UseGuards(AdminAuthGuard)
   async rejectJobListing(@Param('id') id: string, @GetUser() user: User) {
     return this.adminService.rejectJobListing(id, user);

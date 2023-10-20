@@ -19,8 +19,9 @@ import { CreateJobListingDto } from '@@job-listings/dto/create-job-listing.dto';
 import { ApiResponseMeta } from '@@common/decorators/response.decorator';
 import { UpdateJobListingDto } from '@@job-listings/dto/edit-job.dto';
 import { API_TAGS } from '@@common/interfaces';
-import { JobListingsService } from '@@job-listings/job-listings.service';
 import { Throttle } from '@nestjs/throttler';
+import { JobListingApplicationsService } from '@@/job-listing-applications/job-listing-applications.service';
+import { UserJobListingApplicationDto } from '@@/job-listing-applications/dto/get-user-joblisting-applications.dto';
 
 @ApiTags(API_TAGS.USER)
 @ApiBearerAuth()
@@ -28,7 +29,7 @@ import { Throttle } from '@nestjs/throttler';
 export class UserController {
   constructor(
     private readonly userService: UserService,
-    private readonly jobListingService: JobListingsService,
+    private readonly jobListingApplicationService: JobListingApplicationsService,
   ) {}
 
   @Get('/my-job-listings')
@@ -46,19 +47,18 @@ export class UserController {
     return this.userService.viewJobListing(id, user);
   }
 
-  @ApiResponseMeta({ message: 'Job Listing Bookmarked Successfully' })
   @Post('/job-listings/:id/bookmark')
   @UseGuards(AuthGuard())
   async bookmarkJobListing(@Param('id') id: string, @GetUser() user: User) {
     return this.userService.bookmarkJobListing(id, user);
   }
 
-  @ApiResponseMeta({ message: 'Job Listing Unbookmarked Successfully' })
-  @Delete('/job-listings/:id/unbookmark')
-  @UseGuards(AuthGuard())
-  async unbookmarkJobListing(@Param('id') id: string, @GetUser() user: User) {
-    return this.userService.unbookmarkJobListing(id, user);
-  }
+  // @ApiResponseMeta({ message: 'Job Listing Unbookmarked Successfully' })
+  // @Delete('/job-listings/:id/unbookmark')
+  // @UseGuards(AuthGuard())
+  // async unbookmarkJobListing(@Param('id') id: string, @GetUser() user: User) {
+  //   return this.userService.unbookmarkJobListing(id, user);
+  // }
 
   @Throttle({ default: { limit: 5, ttl: 30000 } })
   @Post('/job-listings/create')
@@ -90,8 +90,11 @@ export class UserController {
 
   @Get('/job-applications')
   @UseGuards(AuthGuard())
-  async getMyApplications(@GetUser() user: User) {
-    return this.userService.getMyApplications(user);
+  async getMyApplications(
+    @Query() dto: UserJobListingApplicationDto,
+    @GetUser() user: User,
+  ) {
+    return this.jobListingApplicationService.getMyApplications(dto, user);
   }
 
   @Get('/job-applications/:id')

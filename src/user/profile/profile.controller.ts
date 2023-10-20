@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -24,6 +25,8 @@ import { UserService } from '../user.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { WorkExperienceDto } from '../dto/work-experience.dto';
 import { CertificationsDto } from '../dto/certifications.dto';
+import { GetBookmarkDto } from '../bookmarks/dto/get-bookmarks.dto';
+import { UpdateProfilePictureDto } from '../dto/update-profile-picture.dto';
 
 @ApiTags(API_TAGS.PROFILE)
 @ApiBearerAuth()
@@ -37,17 +40,24 @@ export class ProfileController {
   }
 
   @ApiResponseMeta({ message: 'Profile Updated Successfully' })
-  @Post('/update')
-  @UseInterceptors(FileInterceptor('profilePic'))
   @UseGuards(AuthGuard())
+  @Patch('/update')
+  async updateProfile(@Body() dto: UpdateProfileDto, @GetUser() user: User) {
+    return this.userService.updateProfile(dto, user);
+  }
+
+  @ApiResponseMeta({ message: 'Profile Picture Updated Successfully' })
+  @UseGuards(AuthGuard())
+  @Patch('/update-profile-picture')
+  @UseInterceptors(FileInterceptor('profilePic'))
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: UpdateProfileDto })
-  async updateProfile(
+  @ApiBody({ type: UpdateProfilePictureDto })
+  async updateProfilePicture(
     @UploadedFile() profilePic: Express.Multer.File,
-    @Body() dto: UpdateProfileDto,
+    @Body() dto: UpdateProfilePictureDto,
     @GetUser() user: User,
   ) {
-    return this.userService.updateProfile(dto, profilePic, user);
+    return this.userService.uploadProfilePicture(profilePic, dto, user);
   }
 
   @ApiResponseMeta({ message: 'Technical Skill Added Successfully' })
@@ -217,7 +227,7 @@ export class ProfileController {
 
   @Get('/mybookmarks')
   @UseGuards(AuthGuard())
-  async getMyBookmarks(@GetUser() user: User) {
-    return this.userService.getMyBookmarks(user);
+  async getMyBookmarks(@Query() dto: GetBookmarkDto, @GetUser() user: User) {
+    return this.userService.getMyBookmarks(dto, user);
   }
 }

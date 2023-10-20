@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { MailerService } from '@@/mailer/mailer.service';
 import { CacheService } from '@@/common/cache/cache.service';
 import { PassportModule } from '@nestjs/passport';
+import { GoogleStrategy } from '@@/auth/google.strategy';
 
 @Module({
   imports: [PassportModule.register({ defaultStrategy: 'jwt' })],
@@ -17,6 +18,7 @@ import { PassportModule } from '@nestjs/passport';
     JobListingsService,
     PrismaService,
     CloudinaryService,
+    GoogleStrategy,
     JwtService,
     MailerService,
     CacheService,

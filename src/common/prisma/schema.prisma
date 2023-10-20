@@ -102,15 +102,13 @@ model User {
   id                     String                   @id @default(uuid()) @db.Uuid
   email                  String                   @unique @db.VarChar(50)
   password               String                   @db.VarChar
-  googleId               String?                  @db.VarChar
+  googleId               String?                  @unique @db.VarChar
   roleId                 String?                  @db.Uuid
   lastLogin              DateTime?                @db.Timestamptz(6)
   lastLoginIp            String?                  @db.VarChar
   status                 UserStatus?              @default(Active)
   profileId              String?                  @db.Uuid
   isSubscribed           Boolean                  @default(false)
-  token                  String?                  @db.VarChar
-  tokenExpiresIn         DateTime?                @db.Timestamptz(6)
   subscriptionId         String?                  @unique @db.Uuid
   stripeCustomerId       String?                  @db.VarChar
   createdAt              DateTime                 @default(now()) @db.Timestamptz(6)
@@ -184,7 +182,7 @@ model Profile {
 
 model Bookmark {
   id           String     @id @default(uuid()) @db.Uuid
-  userId       String     @unique @db.Uuid
+  userId       String     @db.Uuid
   jobListingId String     @db.Uuid
   createdAt    DateTime   @default(now()) @db.Timestamptz(6)
   createdBy    String?    @db.Uuid

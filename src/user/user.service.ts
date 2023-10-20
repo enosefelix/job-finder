@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
 import { PrismaService } from '@@common/prisma/prisma.service';
 import { CreateJobListingDto } from '@@job-listings/dto/create-job-listing.dto';
 import { UpdateJobListingDto } from '@@job-listings/dto/edit-job.dto';
@@ -21,20 +21,35 @@ import {
   JOB_APPLICATION_ERORR,
   JOB_LISTING_ERROR,
   JOB_LISTING_STATUS,
+  USER_STATUS,
 } from '@@common/interfaces';
 import { CloudinaryService } from '@@cloudinary/cloudinary.service';
 import { AppUtilities } from '../app.utilities';
 import { CertificationsDto } from './dto/certifications.dto';
 import { UserJobListingDto } from './dto/get-user-joblisting.dto';
 import * as moment from 'moment';
+import { AuthService } from '@@/auth/auth.service';
+import { UsersFilterDto } from '@@/admin/dto/get-users-filter.dto';
+import { CrudService } from '@@/common/database/crud.service';
+import { UserMapType } from './user.maptype';
+import { BookmarksService } from './bookmarks/bookmarks.service';
+import { UpdateProfilePictureDto } from './dto/update-profile-picture.dto';
+import { GetBookmarkDto } from './bookmarks/dto/get-bookmarks.dto';
 
 @Injectable()
-export class UserService {
+export class UserService extends CrudService<
+  Prisma.UserDelegate<Prisma.RejectOnNotFound>,
+  UserMapType
+> {
   constructor(
     private jobListingService: JobListingsService,
     private prisma: PrismaService,
     private cloudinaryService: CloudinaryService,
-  ) {}
+    private authService: AuthService,
+    private bookmarkService: BookmarksService,
+  ) {
+    super(prisma.user);
+  }
 
   async createJobListing(dto: CreateJobListingDto, user: User) {
     return await this.jobListingService.createJobListing(dto, user);
@@ -66,27 +81,6 @@ export class UserService {
     return await this.jobListingService.deleteJobListing(id, user);
   }
 
-  async getMyApplications(user: User) {
-    const foundUser = await this.prisma.user.findUnique({
-      where: { id: user.id },
-    });
-
-    if (!foundUser) {
-      throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
-    }
-
-    const jobApplication = await this.prisma.jobListingApplications.findMany({
-      include: { jobListing: true },
-    });
-
-    if (jobApplication.length < 1)
-      throw new NotFoundException(JOB_APPLICATION_ERORR.NO_JOBS_FOUND);
-
-    AppUtilities.addTimestamps(jobApplication);
-
-    return jobApplication;
-  }
-
   async getMySingleApplication(id: string, user: User) {
     const jobApplication = await this.prisma.jobListingApplications.findFirst({
       where: { id, createdBy: user.id },
@@ -105,6 +99,62 @@ export class UserService {
     AppUtilities.addTimestampBase(jobListing);
 
     return { jobApplication, jobListing };
+  }
+
+  async getAllUsers(
+    { cursor, direction, orderBy, size, ...dto }: UsersFilterDto,
+    user: User,
+  ) {
+    try {
+      await this.authService.verifyUser(user);
+      const parsedQueryFilters = await this.parseQueryFilter(dto, [
+        'email',
+        'profile.firstName',
+        'profile.lastName',
+        {
+          key: 'status',
+          where: (status) => {
+            return {
+              status: {
+                equals: status as USER_STATUS,
+              },
+            };
+          },
+        },
+      ]);
+
+      const args: Prisma.UserFindManyArgs = {
+        where: {
+          ...parsedQueryFilters,
+          email: { not: user.email },
+        },
+        include: { profile: true },
+      };
+
+      const dataMapperFn = (user: any) => {
+        if (user?.email) {
+          delete user?.password;
+          delete user?.roleId;
+          delete user?.lastLoginIp;
+          delete user?.googleId;
+        }
+        return user;
+      };
+
+      const data = await this.findManyPaginate(
+        args,
+        {
+          cursor,
+          direction,
+          orderBy: orderBy || { createdAt: direction },
+          size,
+        },
+        dataMapperFn,
+      );
+      return data;
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
   }
 
   async viewProfile(user: User) {
@@ -129,30 +179,18 @@ export class UserService {
     return foundUser;
   }
 
-  async updateProfile(
-    dto: UpdateProfileDto,
-    profilePic: Express.Multer.File,
-    user: User,
-  ) {
+  async updateProfile(dto: UpdateProfileDto, user: User) {
     try {
-      const uploadProfilePic: any = profilePic
-        ? await this.cloudinaryService
-            .uploadImage(profilePic, user.id)
-            .catch((e) => {
-              throw new BadRequestException('Invalid file type.', e);
-            })
-        : null;
-      const profilePicture = uploadProfilePic?.secure_url || '';
       const foundUser = await this.prisma.user.findUnique({
         where: { id: user.id },
       });
+
       if (!foundUser)
         throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
       const updateProfile = await this.prisma.profile.update({
         where: { userId: user.id },
         data: {
           ...dto,
-          profilePic: profilePicture,
           updatedBy: user.id,
         },
       });
@@ -162,15 +200,19 @@ export class UserService {
     }
   }
 
-  async uploadProfilePicture(profilePicture: Express.Multer.File, user: User) {
-    const uploadProfilePic: any = profilePicture
+  async uploadProfilePicture(
+    profilePic: Express.Multer.File,
+    dto: UpdateProfilePictureDto,
+    user: User,
+  ) {
+    const uploadProfilePic: any = profilePic
       ? await this.cloudinaryService
-          .uploadImage(profilePicture, user.id)
+          .uploadProfilePic(profilePic, user.id)
           .catch(() => {
             throw new BadRequestException('Invalid file type.');
           })
       : null;
-    const profilePic = uploadProfilePic?.secure_url || '';
+    const profilePicture = uploadProfilePic?.secure_url || '';
 
     const foundUser = await this.prisma.user.findUnique({
       where: { id: user.id },
@@ -181,7 +223,7 @@ export class UserService {
     await this.prisma.profile.update({
       where: { userId: user.id },
       data: {
-        profilePic,
+        profilePic: profilePicture,
         updatedBy: user.id,
       },
     });
@@ -634,9 +676,6 @@ export class UserService {
       where: { id: jobListingId, status: JOB_LISTING_STATUS.APPROVED },
     });
 
-    if (jobListing && jobListing.createdBy === foundUser.id)
-      throw new BadRequestException('Cannot Bookmark your jobListing');
-
     if (!jobListing)
       throw new NotFoundException(JOB_LISTING_ERROR.JOB_NOT_FOUND);
 
@@ -644,55 +683,63 @@ export class UserService {
       where: { userId: user.id, jobListingId: jobListing.id },
     });
 
-    if (isBookmarked)
-      throw new ForbiddenException('Job Listing is already bookmarked');
+    if (isBookmarked) {
+      await this.prisma.bookmark.delete({
+        where: {
+          id: isBookmarked.id,
+        },
+      });
 
-    await this.prisma.bookmark.create({
-      data: {
-        jobListing: { connect: { id: jobListing.id } },
-        user: { connect: { id: user.id } },
-        createdBy: user.id,
-      },
-    });
+      return { message: 'JobListing Unbookmarked Successfully' };
+    } else {
+      const bookmark = await this.prisma.bookmark.create({
+        data: {
+          jobListing: { connect: { id: jobListing.id } },
+          user: { connect: { id: user.id } },
+          createdBy: user.id,
+        },
+        include: { jobListing: true },
+      });
+
+      AppUtilities.addTimestampBase(bookmark);
+
+      return { message: 'JobListing Bookmarked Successfully', bookmark };
+    }
   }
 
-  async unbookmarkJobListing(jobListingId: string, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
-      where: { id: user.id },
-    });
+  // async unbookmarkJobListing(jobListingId: string, user: User) {
+  //   const foundUser = await this.prisma.user.findUnique({
+  //     where: { id: user.id },
+  //   });
 
-    if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+  //   if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    const jobListing = await this.prisma.jobListing.findFirst({
-      where: { id: jobListingId, status: JOB_LISTING_STATUS.APPROVED },
-    });
+  //   const jobListing = await this.prisma.jobListing.findFirst({
+  //     where: { id: jobListingId, status: JOB_LISTING_STATUS.APPROVED },
+  //   });
 
-    if (!jobListing)
-      throw new NotFoundException(JOB_LISTING_ERROR.JOB_NOT_FOUND);
+  //   if (!jobListing)
+  //     throw new NotFoundException(JOB_LISTING_ERROR.JOB_NOT_FOUND);
 
-    const bookmark = await this.prisma.bookmark.findFirst({
-      where: { userId: user.id, jobListingId: jobListing.id },
-    });
+  //   const bookmark = await this.prisma.bookmark.findFirst({
+  //     where: { userId: user.id, jobListingId: jobListing.id },
+  //     include: { jobListing: true },
+  //   });
 
-    if (!bookmark)
-      throw new ForbiddenException('Job Listing is not bookmarked');
+  //   if (!bookmark)
+  //     throw new ForbiddenException('Job Listing is not bookmarked');
 
-    await this.prisma.bookmark.delete({
-      where: {
-        id: bookmark.id,
-      },
-    });
-  }
+  //   await this.prisma.bookmark.delete({
+  //     where: {
+  //       id: bookmark.id,
+  //     },
+  //   });
 
-  async getMyBookmarks(user: User) {
-    const bookmarks = await this.prisma.bookmark.findMany({
-      where: { userId: user.id },
-      include: { jobListing: true },
-    });
+  //   return bookmark;
+  // }
 
-    if (bookmarks.length < 1) throw new NotFoundException('No Bookmarks found');
-
-    return bookmarks;
+  async getMyBookmarks(dto: GetBookmarkDto, user: User) {
+    return this.bookmarkService.getMyBookmarks(dto, user);
   }
 
   async tagUsers(userId: string, jobListingId: string, user: User) {

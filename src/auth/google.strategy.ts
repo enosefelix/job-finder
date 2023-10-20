@@ -3,6 +3,7 @@ import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { config } from 'dotenv';
 
 import { BadRequestException, Injectable } from '@nestjs/common';
+import axios from 'axios';
 
 config();
 
@@ -15,6 +16,30 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       callbackURL: `${process.env.APP_HOST}/google/redirect`,
       scope: ['email', 'profile'],
     });
+  }
+
+  async clientValidate(accessToken: string): Promise<any> {
+    try {
+      const response = await axios.get(
+        'https://www.googleapis.com/oauth2/v3/userinfo',
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        },
+      );
+      const { data } = response;
+      const { email, given_name, family_name, picture } = data;
+      const user = {
+        email,
+        firstName: given_name,
+        lastName: family_name,
+        picture: picture,
+      };
+      return user;
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
   }
 
   async validate(

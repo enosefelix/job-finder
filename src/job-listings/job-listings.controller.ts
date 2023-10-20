@@ -41,7 +41,7 @@ export class JobListingsController {
   }
 
   // @Get('jobListingApplication/download/:id')
-  // async downloadJobListingApplication(@Query('id') id: string) {
+  // async downloadJobListingApplication(@Param('id') id: string) {
   //   return this.jobListingsService.downloadFiles(id);
   // }
 
