@@ -38,6 +38,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       };
       return user;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -59,6 +60,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       };
       done(null, user);
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }

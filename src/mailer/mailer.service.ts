@@ -24,11 +24,11 @@ export class MailerService {
     private cacheService: CacheService,
   ) {}
 
-  async sendUpdateEmail(email: string) {
+  async sendUpdateEmail(email: string, templateName: string) {
     try {
       const foundUser = await this.prisma.user.findUnique({
         where: { email },
-        include: { profile: true },
+        include: { profile: true, role: true },
       });
       const requestId = v4();
 
@@ -37,12 +37,17 @@ export class MailerService {
         {
           email,
           userId: foundUser.id,
+          role: foundUser.role.code,
         },
         parseInt(process.env.PASSWORD_RESET_EXPIRES),
       );
 
-      const resetUrl = new URL(
-        `${process.env.FRONTENDURL}/pages/auth/reset-password/${requestId}`,
+      const resetUrlUser = new URL(
+        `${process.env.FRONTEND_URL_USER}/pages/auth/reset-password/${requestId}`,
+      );
+
+      const resetUrlAdmin = new URL(
+        `${process.env.FRONTEND_URL_ADMIN}/pages/auth/reset-password/${requestId}`,
       );
 
       const firstName = foundUser.profile.firstName,
@@ -54,17 +59,20 @@ export class MailerService {
       const mailServicePayload = {
         context: {
           fullName,
-          resetUrl,
+          resetUrl:
+            templateName === TEMPLATE.RESET_MAIL_ADMIN
+              ? resetUrlAdmin
+              : resetUrlUser,
           email: foundUser.email,
           imagePath: AppUtilities.decode(imagePath),
         },
         email: foundUser.email,
-        templateName: TEMPLATE.RESET_MAIL,
+        templateName: TEMPLATE.RESET_MAIL_USER,
         subject: 'Reset Password',
       };
 
       this.logger.debug(`Sending reset link mail...`);
-      await this.sendMail(mailServicePayload);
+      await this.sendMail(mailServicePayload, templateName);
       this.logger.debug(`Mail sent!`);
 
       return;
@@ -81,31 +89,29 @@ export class MailerService {
     }
   }
 
-  async sendMail(payload: any) {
-    const buildEmailTemplate = (templateName: string) => {
-      return handlebars.compile(
-        readFileSync(
-          `src/mailer/public/templates/${templateName}.hbs`,
-          'utf-8',
-        ),
+  buildEmailTemplate = (templateName: string) => {
+    return handlebars.compile(
+      readFileSync(`src/mailer/public/templates/${templateName}.hbs`, 'utf-8'),
+    );
+  };
+
+  async sendMail(payload: any, templateName: string) {
+    try {
+      const emailTemplate = this.buildEmailTemplate(templateName)(
+        payload.context,
       );
-    };
 
-    const emailTemplate = buildEmailTemplate('reset-password')(payload.context);
+      const mailOptions = {
+        to: payload.email,
+        subject: payload.subject,
+        attachments: [],
+        html: emailTemplate,
+      };
 
-    const mailOptions = {
-      to: payload.email,
-      subject: payload.subject,
-      attachments: [
-        // {
-        //   filename: 'i-Work-in-Afrika.jpg',
-        //   path: imagePath,
-        //   cid: 'i-Work-in-Afrika_u1xcki',
-        // },
-      ],
-      html: emailTemplate,
-    };
-
-    return this.mailerService.sendMail(mailOptions);
+      return this.mailerService.sendMail(mailOptions);
+    } catch (error) {
+      console.log(error);
+      throw new ServiceUnavailableException('Service Unavailable');
+    }
   }
 }

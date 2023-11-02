@@ -1,13 +1,13 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
+  NotAcceptableException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { JobListing, PrismaClient, User } from '@prisma/client';
+import { JobListing, Prisma, PrismaClient, User } from '@prisma/client';
 import {
   AUTH_ERROR_MSGS,
   Category,
@@ -16,6 +16,7 @@ import {
   JOB_LISTING_ERROR,
   JOB_LISTING_STATUS,
   JobType,
+  ROLE_TYPE,
   USER_STATUS,
 } from '@@common/interfaces/index';
 import { PrismaService } from '@@common/prisma/prisma.service';
@@ -25,8 +26,6 @@ import { JobListingsService } from '@@job-listings/job-listings.service';
 import { AuthService } from '@@auth/auth.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import * as moment from 'moment';
-import { JwtPayload } from '@@auth/payload/jwt.payload.interface';
 import { LoginDto } from '@@auth/dto/login.dto';
 import { CloudinaryService } from '@@cloudinary/cloudinary.service';
 import { CreateJobListingDto } from '@@job-listings/dto/create-job-listing.dto';
@@ -34,6 +33,14 @@ import { UpdateJobListingDto } from '@@job-listings/dto/edit-job.dto';
 import { AppUtilities } from '../app.utilities';
 import { UserService } from '@@/user/user.service';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
+import { SendResetLinkDto } from '@@/auth/dto/send-reset-link.dto';
+import { MailerService } from '@@/mailer/mailer.service';
+import { CacheService } from '@@/common/cache/cache.service';
+import { CacheKeysEnums } from '@@/common/cache/cache.enums';
+import { ResetPasswordDto } from '@@/auth/dto/reset-password.dto';
+import { TEMPLATE } from '@@/mailer/interfaces';
+import { UpdatePasswordDto } from '@@/auth/dto/updatePassword.dto';
+import { UpdateJobListingStatusDto } from './dto/approve-jobListing.dto';
 
 @Injectable()
 export class AdminService {
@@ -46,72 +53,84 @@ export class AdminService {
     private configService: ConfigService,
     private cloudinaryService: CloudinaryService,
     private userService: UserService,
+    private mailerService: MailerService,
+    private cacheService: CacheService,
   ) {}
 
   async login(loginDto: LoginDto, ip: string): Promise<any> {
+    return this.authService.adminLogin(loginDto, ip);
+  }
+
+  async sendResetMail(forgotPassDto: SendResetLinkDto): Promise<any> {
     try {
-      // eslint-disable-next-line prefer-const
-      let { email, password } = loginDto;
-      email = email.toLowerCase();
-      const user = await this.prisma.user.findFirst({
-        where: {
-          email: {
-            equals: email,
-            mode: 'insensitive',
-          },
-        },
-        include: { role: true, profile: true },
+      const { email } = forgotPassDto;
+
+      const foundUser = await this.prisma.user.findFirst({
+        where: { email },
+        include: { role: true },
       });
 
-      if (!user)
-        throw new UnauthorizedException(AUTH_ERROR_MSGS.CREDENTIALS_DONT_MATCH);
+      if (!foundUser)
+        throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-      if (user.googleId)
-        throw new ConflictException(AUTH_ERROR_MSGS.GOOGLE_ALREDY_EXISTS);
+      if (foundUser.status === USER_STATUS.SUSPENDED)
+        throw new UnauthorizedException(
+          AUTH_ERROR_MSGS.SUSPENDED_ACCOUNT_RESET_ADMIN,
+        );
 
-      if (user.status === USER_STATUS.SUSPENDED) {
-        throw new UnauthorizedException(AUTH_ERROR_MSGS.SUSPENDED_ACCOUNT);
-      }
+      if (foundUser.role.code !== ROLE_TYPE.ADMIN)
+        throw new UnauthorizedException(
+          'You do not have the necessary permissions to perform this action. Only administrators are allowed to access this feature.',
+        );
 
-      if (!(await AppUtilities.validator(password, user.password)))
-        throw new UnauthorizedException(AUTH_ERROR_MSGS.INVALID_CREDENTIALS);
+      if (foundUser.googleId)
+        throw new UnauthorizedException(AUTH_ERROR_MSGS.GOOGLE_CANNOT_RESET);
 
-      const jwtPayload: JwtPayload = { email: user.email, userId: user.id };
-      const accessToken: string = await this.jwtService.sign(jwtPayload, {
-        secret: this.configService.get('JWT_SECRET'),
-        expiresIn: this.configService.get('JWT_EXPIRES'),
-      });
+      const sendMail = await this.mailerService.sendUpdateEmail(
+        email,
+        TEMPLATE.RESET_MAIL_ADMIN,
+      );
 
-      const refreshToken: string = await this.jwtService.sign(jwtPayload, {
-        secret: this.configService.get('JWT_SECRET'),
-        expiresIn: this.configService.get('JWT_EXPIRES'),
-      });
-
-      const currentDate = moment().toISOString();
-
-      const updatedUser = await this.prisma.user.update({
-        where: { email: email.toLowerCase() },
-        data: {
-          lastLogin: currentDate,
-          lastLoginIp: ip,
-        },
-        include: { profile: { select: { firstName: true, lastName: true } } },
-      });
-
-      const properties = AppUtilities.extractProperties(updatedUser);
-
-      const { rest } = properties;
-
-      return {
-        accessToken,
-        refreshToken,
-        user: {
-          ...rest,
-        },
-      };
+      return sendMail;
     } catch (e) {
-      throw e;
+      console.log(e);
+      throw new BadRequestException(e.message);
     }
+  }
+
+  async resetPassword(requestId: string, resetPasswordDto: ResetPasswordDto) {
+    const tokenData = await this.cacheService.get(
+      CacheKeysEnums.REQUESTS + requestId,
+    );
+
+    if (!tokenData) {
+      throw new BadRequestException(AUTH_ERROR_MSGS.EXPIRED_LINK);
+    }
+
+    if (tokenData.role !== ROLE_TYPE.ADMIN)
+      throw new BadRequestException(
+        'You do not have the necessary permissions to perform this action. Only administrators are allowed to access this feature.',
+      );
+
+    const { newPassword, confirmNewPassword } = resetPasswordDto;
+
+    const hashedPassword = await AppUtilities.hasher(newPassword);
+
+    if (newPassword !== confirmNewPassword)
+      throw new NotAcceptableException(AUTH_ERROR_MSGS.PASSWORD_MATCH);
+
+    const dto: Prisma.UserUpdateArgs = {
+      where: { email: tokenData.email },
+      data: {
+        password: hashedPassword,
+        updatedBy: tokenData.userId,
+      },
+    };
+
+    const updatedUser = await this.prisma.user.update(dto);
+
+    await this.cacheService.remove(CacheKeysEnums.REQUESTS + requestId);
+    return updatedUser;
   }
 
   public async getJobListing(id: string): Promise<any> {
@@ -127,10 +146,63 @@ export class AdminService {
     return jobListing;
   }
 
+  async updatePassword(dto: UpdatePasswordDto, user: User): Promise<any> {
+    try {
+      const { oldPassword, newPassword, confirmNewPassword } = dto;
+      const foundUser = await this.prisma.user.findUnique({
+        where: { id: user.id },
+        include: { role: true },
+      });
+
+      if (foundUser.role.code !== ROLE_TYPE.ADMIN)
+        throw new UnauthorizedException(
+          'You do not have the necessary permissions to perform this action. Only administrators are allowed to access this feature.',
+        );
+      if (foundUser.googleId)
+        throw new NotAcceptableException(
+          AUTH_ERROR_MSGS.GOOGLE_CHANGE_PASS_ERROR,
+        );
+
+      if (!foundUser)
+        throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+
+      if (!(await AppUtilities.validator(oldPassword, foundUser.password)))
+        throw new UnauthorizedException(AUTH_ERROR_MSGS.INVALID_OLD_PASSWORD);
+
+      if (newPassword !== confirmNewPassword)
+        throw new NotAcceptableException(AUTH_ERROR_MSGS.PASSWORD_MATCH);
+
+      if (oldPassword === newPassword)
+        throw new NotAcceptableException(AUTH_ERROR_MSGS.SAME_PASSWORD_ERROR);
+
+      const hashedPassword = await AppUtilities.hasher(newPassword);
+
+      const updatedPassword = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+          updatedBy: user.id,
+        },
+      });
+
+      const properties = AppUtilities.extractProperties(updatedPassword);
+
+      const { rest } = properties;
+
+      return {
+        user: rest,
+      };
+    } catch (error) {
+      console.log(error);
+      throw new BadRequestException(error.message);
+    }
+  }
+
   async getAllUsers(dto: UsersFilterDto, user: User): Promise<User[]> {
     try {
       return this.userService.getAllUsers(dto, user);
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -167,6 +239,7 @@ export class AdminService {
         user: rest,
       };
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -194,6 +267,7 @@ export class AdminService {
 
       return { user: { ...rest }, jobListings: userJobListings };
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -249,32 +323,14 @@ export class AdminService {
         });
 
         return { message: 'User Suspended Successfully' };
+      } else {
+        throw new BadRequestException(`User is already ${status}`);
       }
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
-
-  // async unsuspendUser(id: string, adminUser: User): Promise<void> {
-  //   try {
-  //     await this.authService.verifyUser(adminUser);
-  //     const user = await this.prisma.user.findUnique({
-  //       where: { id },
-  //     });
-
-  //     if (!user) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
-
-  //     await this.prisma.user.update({
-  //       where: { id },
-  //       data: {
-  //         status: USER_STATUS.ACTIVE,
-  //         updatedBy: adminUser.id,
-  //       },
-  //     });
-  //   } catch (error) {
-  //     throw new BadRequestException(error.message);
-  //   }
-  // }
 
   async deleteUser(id: string, adminUser: User): Promise<void> {
     try {
@@ -301,51 +357,80 @@ export class AdminService {
         where: { id },
       });
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
 
-  async approveJobListing(id: string, user: User): Promise<JobListing> {
+  async updateJobListingStatus(
+    dto: UpdateJobListingStatusDto,
+    id: string,
+    user: User,
+  ): Promise<JobListing> {
     try {
       await this.authService.verifyUser(user);
-      await this.getJobListing(id);
 
-      const approvedJob = await this.prisma.jobListing.update({
+      const jobListing = await this.prisma.jobListing.findUnique({
         where: { id },
-        data: {
-          status: JOB_LISTING_STATUS.APPROVED,
-          approvedBy: { connect: { id: user.id } },
-          updatedBy: user.id,
-        },
-        include: {
-          approvedBy: { select: { id: true, email: true, status: true } },
-          postedBy: { select: { id: true, email: true, status: true } },
-        },
       });
 
-      return approvedJob;
+      const { status } = dto;
+
+      if (
+        (status === JOB_LISTING_STATUS.APPROVED &&
+          jobListing.status === JOB_LISTING_STATUS.PENDING) ||
+        (status === JOB_LISTING_STATUS.APPROVED &&
+          jobListing.status === JOB_LISTING_STATUS.REJECTED)
+      ) {
+        return await this.prisma.jobListing.update({
+          where: { id },
+          data: {
+            status: status as JOB_LISTING_STATUS,
+            approvedBy: { connect: { id: user.id } },
+            updatedBy: user.id,
+          },
+          include: {
+            approvedBy: { select: { id: true, email: true, status: true } },
+            postedBy: { select: { id: true, email: true, status: true } },
+          },
+        });
+      } else if (
+        (status === JOB_LISTING_STATUS.REJECTED &&
+          jobListing.status === JOB_LISTING_STATUS.PENDING) ||
+        (status === JOB_LISTING_STATUS.REJECTED &&
+          jobListing.status === JOB_LISTING_STATUS.APPROVED)
+      ) {
+        return await this.prisma.jobListing.update({
+          where: { id },
+          data: {
+            status: status as JOB_LISTING_STATUS,
+            updatedBy: user.id,
+          },
+          include: {
+            postedBy: { select: { id: true, email: true, status: true } },
+          },
+        });
+      } else if (
+        (status === JOB_LISTING_STATUS.PENDING &&
+          jobListing.status === JOB_LISTING_STATUS.REJECTED) ||
+        (status === JOB_LISTING_STATUS.PENDING &&
+          jobListing.status === JOB_LISTING_STATUS.APPROVED)
+      ) {
+        return await this.prisma.jobListing.update({
+          where: { id },
+          data: {
+            status: status as JOB_LISTING_STATUS,
+            updatedBy: user.id,
+          },
+          include: {
+            postedBy: { select: { id: true, email: true, status: true } },
+          },
+        });
+      } else {
+        throw new BadRequestException(`Job listing is already ${status}`);
+      }
     } catch (error) {
-      throw new BadRequestException(error.message);
-    }
-  }
-
-  async rejectJobListing(id: string, user: User): Promise<JobListing> {
-    try {
-      await this.authService.verifyUser(user);
-      const userId = user.id;
-
-      await this.getJobListing(id);
-
-      const approvedJob = await this.prisma.jobListing.update({
-        where: { id },
-        data: {
-          status: JOB_LISTING_STATUS.REJECTED,
-          updatedBy: userId,
-        },
-      });
-
-      return approvedJob;
-    } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -409,6 +494,7 @@ export class AdminService {
         await Promise.all(prismaDeletePromises);
       });
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -423,6 +509,7 @@ export class AdminService {
         user,
       );
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -452,6 +539,7 @@ export class AdminService {
 
       return jobListing;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -464,7 +552,14 @@ export class AdminService {
     try {
       await this.authService.verifyUser(user);
 
-      const { title, jobResponsibilities, category, ...rest } = dto;
+      const {
+        title,
+        jobResponsibilities,
+        category,
+        jobType,
+        experienceLevel,
+        ...rest
+      } = dto;
 
       const foundUser = await this.prisma.user.findUnique({
         where: { id: user.id },
@@ -480,8 +575,8 @@ export class AdminService {
       if (!jobListing)
         throw new NotFoundException(JOB_LISTING_ERROR.JOB_NOT_FOUND);
 
-      if (foundUser.id !== jobListing.createdBy)
-        throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
+      // if (foundUser.id !== jobListing.createdBy)
+      //   throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
       const updateJobListing = await this.prisma.jobListing.update({
         where: { id },
@@ -490,13 +585,15 @@ export class AdminService {
           jobResponsibilities,
           ...rest,
           category: category as Category,
+          jobType: jobType as JobType,
+          experienceLevel: experienceLevel as ExperienceLevel,
           updatedBy: foundUser.id,
-          status: JOB_LISTING_STATUS.APPROVED,
         },
       });
 
       return updateJobListing;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -527,7 +624,7 @@ export class AdminService {
         postedBy: { connect: { email: user.email } },
         skills,
         languages,
-        status: JOB_LISTING_STATUS.APPROVED,
+        status: JOB_LISTING_STATUS.PENDING,
         approvedBy: { connect: { id: user.id } },
       },
     });
@@ -536,64 +633,132 @@ export class AdminService {
   }
 
   async adminDataAggregation(user: User) {
+    const prisma = this.prisma;
     const foundUser = await this.prisma.user.findUnique({
       where: { id: user.id },
+      include: { role: true },
     });
 
     if (!foundUser) {
       throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
     }
 
+    if (foundUser.role.code !== ROLE_TYPE.ADMIN)
+      throw new ForbiddenException(
+        'You are not permitted to access this resource',
+      );
+
     const [
       totalNumOfUsers,
+      totalNumberOfActiveUsers,
+      totalNumberOfInactiveUsers,
+      totalNumberOfSuspendedUsers,
+      totalNumberOfJoblistings,
       totalNumberOfApprovedJobListings,
       totalNumberOfPendingJobListings,
+      totalNumberOfRejectedJobListings,
     ] = await Promise.all([
-      this.totalNumberOfUsers(),
-      this.totalNumberOfApprovedJobListings(),
-      this.totalNumberOfPendingJobListings(),
+      this.totalNumberOfUsers(prisma, user),
+      this.totalNumberOfActiveUsers(prisma, user),
+      this.totalNumberOfInactiveUsers(prisma, user),
+      this.totalNumberOfSuspendedUsers(prisma, user),
+      this.totalNumberOfJoblistings(prisma),
+      this.totalNumberOfApprovedJobListings(prisma),
+      this.totalNumberOfPendingJobListings(prisma),
+      this.totalNumberOfRejectedJobListings(prisma),
     ]);
 
     return {
       totalNumOfUsers,
+      totalNumberOfActiveUsers,
+      totalNumberOfInactiveUsers,
+      totalNumberOfSuspendedUsers,
+      totalNumberOfJoblistings,
       totalNumberOfApprovedJobListings,
       totalNumberOfPendingJobListings,
+      totalNumberOfRejectedJobListings,
     };
   }
 
-  async totalNumberOfUsers() {
-    let numberOfUsers = 0;
-    const data = await this.prisma.user.aggregate({
+  async totalNumberOfUsers(prisma: PrismaClient, user: User) {
+    const data = await prisma.user.count({
+      where: { id: { not: user.id } },
+      select: { id: true },
+    });
+
+    return data?.id;
+  }
+
+  async totalNumberOfActiveUsers(prisma: PrismaClient, user: User) {
+    const data = await prisma.user.aggregate({
+      where: { status: USER_STATUS.ACTIVE, id: { not: user.id } },
       _count: true,
     });
 
-    numberOfUsers += data._count;
-
-    return numberOfUsers;
+    return data._count;
   }
 
-  async totalNumberOfApprovedJobListings() {
-    let numberOfApprovedJobListings = 0;
-    const data = await this.prisma.jobListing.aggregate({
+  async totalNumberOfInactiveUsers(prisma: PrismaClient, user: User) {
+    const data = await prisma.user.aggregate({
+      where: {
+        status: USER_STATUS.INACTIVE,
+        id: { not: user.id },
+      },
+      _count: true,
+    });
+
+    return data._count;
+  }
+
+  async totalNumberOfSuspendedUsers(prisma: PrismaClient, user: User) {
+    const rejectedJobListing = await prisma.user.aggregate({
+      where: {
+        status: USER_STATUS.SUSPENDED,
+        id: { not: user.id },
+      },
+      _count: true,
+    });
+
+    return rejectedJobListing._count;
+  }
+
+  async totalNumberOfJoblistings(prisma: PrismaClient) {
+    const data = await prisma.jobListing.count({
+      select: { id: true },
+    });
+
+    return data?.id;
+  }
+
+  async totalNumberOfApprovedJobListings(prisma: PrismaClient) {
+    const data = await prisma.jobListing.aggregate({
       where: { status: JOB_LISTING_STATUS.APPROVED },
       _count: true,
     });
 
-    numberOfApprovedJobListings += data._count;
-
-    return numberOfApprovedJobListings;
+    return data._count;
   }
 
-  async totalNumberOfPendingJobListings() {
-    let numberOfPendingJobListings = 0;
-    const data = await this.prisma.jobListing.aggregate({
-      where: { status: JOB_LISTING_STATUS.PENDING },
+  async totalNumberOfPendingJobListings(prisma: PrismaClient) {
+    const data = await prisma.jobListing.aggregate({
+      where: {
+        status: JOB_LISTING_STATUS.PENDING,
+      },
       _count: true,
     });
 
-    numberOfPendingJobListings += data._count;
+    return data._count;
+  }
 
-    return numberOfPendingJobListings;
+  async totalNumberOfRejectedJobListings(prisma: PrismaClient) {
+    const rejectedJobListing = await prisma.jobListing.aggregate({
+      where: {
+        status: JOB_LISTING_STATUS.REJECTED,
+      },
+      _count: true,
+    });
+
+    return rejectedJobListing._count;
   }
 
   async allJobApplications(user: User) {

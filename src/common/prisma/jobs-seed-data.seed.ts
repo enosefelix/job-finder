@@ -455,7 +455,7 @@ const job_listings = [
       `Flexible work arrangements.`,
     ],
     category: Category.REMOTE,
-    status: JOB_LISTING_STATUS.REJECTED,
+    status: JOB_LISTING_STATUS.PENDING,
   },
   {
     id: '5b6884f0-3bc2-46dd-a6dc-92a3bd3beec7',
@@ -500,7 +500,7 @@ const job_listings = [
       `Flexible work arrangements.`,
     ],
     category: Category.REMOTE,
-    status: JOB_LISTING_STATUS.REJECTED,
+    status: JOB_LISTING_STATUS.PENDING,
   },
   {
     id: 'ab9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed',
@@ -545,7 +545,7 @@ const job_listings = [
       `Flexible work arrangements.`,
     ],
     category: Category.REMOTE,
-    status: JOB_LISTING_STATUS.REJECTED,
+    status: JOB_LISTING_STATUS.PENDING,
   },
   {
     id: 'bc9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed',
@@ -590,7 +590,7 @@ const job_listings = [
       `Flexible work arrangements.`,
     ],
     category: Category.REMOTE,
-    status: JOB_LISTING_STATUS.REJECTED,
+    status: JOB_LISTING_STATUS.PENDING,
   },
   {
     id: '4898b12e-f4cb-4fd3-8f58-5a179720185d',

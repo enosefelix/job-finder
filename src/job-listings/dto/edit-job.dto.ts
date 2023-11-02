@@ -1,92 +1,88 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsArray,
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsArray, IsEnum, IsOptional, IsString } from 'class-validator';
 import { Category, ExperienceLevel, JobType } from '@@common/interfaces';
 
 export class UpdateJobListingDto {
-  @ApiProperty()
-  @IsNotEmpty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   title: string;
 
-  @ApiProperty()
-  @IsNotEmpty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   companyName: string;
 
   @ApiPropertyOptional()
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   companyDetails: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsArray()
   @IsOptional()
   jobResponsibilities: string[];
 
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsString()
+  @ApiPropertyOptional()
+  @IsArray()
+  @IsOptional()
   jobRequirements: string[];
 
   @ApiPropertyOptional()
   @IsString()
   salary: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     enum: ExperienceLevel,
     description:
       'Junior | MidLevel | Senior | EntryLevel | Internship | Associate | Principal',
   })
-  @IsEnum(ExperienceLevel)
-  experienceLevel: ExperienceLevel;
+  @IsEnum(ExperienceLevel, { each: true })
+  @IsOptional()
+  experienceLevel: ExperienceLevel | string = '';
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     enum: JobType,
     description:
       'FullTime | PartTime | Contract | Freelance | Internship | Temporary',
   })
-  @IsEnum(JobType)
-  jobType: JobType;
+  @IsEnum(JobType, { each: true })
+  @IsOptional()
+  jobType: JobType | string = '';
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsString()
   industry: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsString()
   location: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Health Insurance, Paid Time Off',
   })
   @IsArray()
   @IsOptional()
   benefits: string[];
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'English, Spanish',
   })
   @IsArray()
   @IsOptional()
   languages: string[];
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Nodejs, MongoDB',
   })
   @IsArray()
   @IsOptional()
   skills: string[];
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     enum: Category,
     description: 'Hybrid | Onsite | Remote',
   })
-  @IsEnum(Category)
-  category: Category;
+  @IsOptional()
+  category: Category | null | string = '';
 }

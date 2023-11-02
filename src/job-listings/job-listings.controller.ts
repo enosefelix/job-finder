@@ -9,6 +9,8 @@ import {
   UploadedFiles,
   UseGuards,
   UseInterceptors,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { JobListingsService } from './job-listings.service';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
@@ -24,6 +26,7 @@ import { ApiResponseMeta } from '@@/common/decorators/response.decorator';
 
 @ApiBearerAuth()
 @ApiTags(API_TAGS.JOBS)
+@UsePipes(new ValidationPipe())
 @Controller('job-listings')
 export class JobListingsController {
   constructor(private readonly jobListingsService: JobListingsService) {}

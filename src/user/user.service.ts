@@ -153,6 +153,7 @@ export class UserService extends CrudService<
       );
       return data;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -196,6 +197,7 @@ export class UserService extends CrudService<
       });
       return updateProfile;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -209,7 +211,9 @@ export class UserService extends CrudService<
       ? await this.cloudinaryService
           .uploadProfilePic(profilePic, user.id)
           .catch(() => {
-            throw new BadRequestException('Invalid file type.');
+            throw new BadRequestException(
+              'Invalid file type, must be an image.',
+            );
           })
       : null;
     const profilePicture = uploadProfilePic?.secure_url || '';

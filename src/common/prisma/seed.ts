@@ -15,7 +15,11 @@ async function seedDatabase() {
 
   try {
     const hashedPassword = (await AppUtilities.hasher('Iwia12345')) as string;
-    const email = 'admin@iwia.com';
+    const email = 'iwiaadmin123@getnada.com';
+
+    const foundUser = await prisma.user.findUnique({
+      where: { email },
+    });
 
     // Seed roles
     logger.debug('Seeding roles...');
@@ -44,7 +48,6 @@ async function seedDatabase() {
         console.error('Error seeding job listing', error);
       }
     }
-
     logger.debug('Job listing seeding complete...\n\n');
 
     await prisma.user.create({
@@ -88,6 +91,34 @@ async function seedDatabase() {
       }
     }
     logger.debug('Blogs seeding complete...\n\n');
+
+    for (const job of job_listingSeed) {
+      try {
+        await prisma.jobListing.update({
+          where: { id: job.id },
+          data: {
+            createdBy: foundUser.id,
+          },
+        }),
+          console.log(`Job listing updated ${job.title}`);
+      } catch (error) {
+        console.error('Error seeding job listing', error);
+      }
+    }
+
+    for (const blog of blogSeed) {
+      try {
+        await prisma.blog.update({
+          where: { id: blog.id },
+          data: {
+            createdBy: foundUser.id,
+          },
+        }),
+          console.log(`Job listing created ${blog.title}`);
+      } catch (error) {
+        console.error('Error seeding job listing', error);
+      }
+    }
 
     // Seed user
     logger.debug('Seeding user...');

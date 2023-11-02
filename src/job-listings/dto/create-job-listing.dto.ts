@@ -20,15 +20,14 @@ export class CreateJobListingDto {
   companyName: string;
 
   @ApiPropertyOptional()
-  @IsNotEmpty()
   @IsString()
   companyDetails: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsArray()
   jobResponsibilities: string[];
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsArray()
   jobRequirements: string[];
 
@@ -36,21 +35,23 @@ export class CreateJobListingDto {
   @IsString()
   salary: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     enum: ExperienceLevel,
     description:
       'Junior | MidLevel | Senior | EntryLevel | Internship | Associate | Principal',
   })
-  @IsEnum(ExperienceLevel)
-  experienceLevel: ExperienceLevel;
+  @IsEnum(ExperienceLevel, { each: true })
+  @IsOptional()
+  experienceLevel: ExperienceLevel | null | string = '';
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     enum: JobType,
     description:
       'FullTime | PartTime | Contract | Freelance | Internship | Temporary',
   })
-  @IsEnum(JobType)
-  jobType: JobType;
+  @IsEnum(JobType, { each: true })
+  @IsOptional()
+  jobType: JobType | null | string = '';
 
   @ApiProperty()
   @IsString()
@@ -63,6 +64,7 @@ export class CreateJobListingDto {
   @ApiPropertyOptional({
     description: 'Health Insurance, Dental Insurance',
   })
+  Optionall;
   @IsArray()
   @IsOptional()
   benefits: string[];
@@ -81,10 +83,11 @@ export class CreateJobListingDto {
   @IsOptional()
   skills: string[];
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     enum: Category,
     description: 'Hybrid | Onsite | Remote',
   })
-  @IsEnum(Category)
-  category: Category;
+  @IsEnum(Category, { each: true })
+  @IsOptional()
+  category: Category | null | string = '';
 }

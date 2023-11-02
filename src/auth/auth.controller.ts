@@ -9,6 +9,7 @@ import {
   Patch,
   Param,
   Request,
+  UsePipes,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -25,24 +26,28 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { GoogleGuard } from '@@/common/guards/oauth.guard';
 
 @ApiTags(API_TAGS.AUTH)
-// @UsePipes(new ValidationPipe())
+@UsePipes(new ValidationPipe())
 @Controller()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @ApiResponseMeta({ message: 'User Signed Up Successfully' })
   @Post('auth/signup')
-  async signup(@Body(ValidationPipe) dto: SignupDto): Promise<any> {
+  async signup(@Body() dto: SignupDto): Promise<any> {
     return this.authService.signup(dto);
   }
 
   @ApiResponseMeta({ message: 'You have logged in!' })
   @Post('auth/login')
-  async login(
-    @Body(ValidationPipe) dto: LoginDto,
-    @RealIp() ip: string,
-  ): Promise<any> {
+  async login(@Body() dto: LoginDto, @RealIp() ip: string): Promise<any> {
     return this.authService.login(dto, ip);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard())
+  @Post('auth/logout')
+  async logout(@GetUser() user: User, @Request() req: any): Promise<any> {
+    return this.authService.logout(user, req);
   }
 
   @ApiResponseMeta({
@@ -50,7 +55,7 @@ export class AuthController {
       'We have sent an email to the email registered with this account containing further instructions to reset your password!',
   })
   @Post('auth/request-password-reset')
-  async sendMail(@Body(ValidationPipe) dto: SendResetLinkDto): Promise<any> {
+  async sendMail(@Body() dto: SendResetLinkDto): Promise<any> {
     return this.authService.sendMail(dto);
   }
 
@@ -67,7 +72,7 @@ export class AuthController {
   @ApiResponseMeta({ message: 'Password Updated Successfully' })
   @UseGuards(AuthGuard())
   @Patch('auth/change-password')
-  async updatesPassword(
+  async updatePassword(
     @Body() dto: UpdatePasswordDto,
     @GetUser() user: User,
   ): Promise<any> {

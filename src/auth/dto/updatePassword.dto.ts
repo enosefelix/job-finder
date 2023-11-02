@@ -16,7 +16,7 @@ export class UpdatePasswordDto {
   @ApiProperty()
   @IsNotEmpty()
   @IsString()
-  @MinLength(8)
+  @MinLength(5)
   @MaxLength(20)
   @Matches(
     /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)[A-Za-z\d!@#$%^&*()_+\-=\[\]{}|;':",.<>?/]*$/,

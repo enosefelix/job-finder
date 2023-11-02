@@ -13,6 +13,7 @@ import { AppUtilities } from '@@/app.utilities';
 import { CreateBlogDto } from './dto/create-blog.dto';
 import { AUTH_ERROR_MSGS, BLOG_ERROR_MSGS } from '@@/common/interfaces';
 import { CloudinaryService } from '@@/cloudinary/cloudinary.service';
+import { UpdateBlogDto } from './dto/update-blog.dto';
 
 @Injectable()
 export class BlogService extends CrudService<
@@ -68,6 +69,7 @@ export class BlogService extends CrudService<
 
       return blogs;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -111,6 +113,7 @@ export class BlogService extends CrudService<
 
       return blogs;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -126,6 +129,7 @@ export class BlogService extends CrudService<
 
       return blog;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -141,6 +145,7 @@ export class BlogService extends CrudService<
 
       return blog;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -173,7 +178,11 @@ export class BlogService extends CrudService<
         ? await this.cloudinaryService
             .uploadBlogImage(image, blog.id)
             .catch((e) => {
-              throw new BadRequestException('Invalid file type.', e);
+              console.log(e);
+              throw new BadRequestException(
+                'Invalid file type, must be an image.',
+                e,
+              );
             })
         : null;
       this.logger.debug('Image saved to the cloud successfully');
@@ -186,13 +195,14 @@ export class BlogService extends CrudService<
 
       return updatedBlog;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
 
   async updateBlog(
     id: string,
-    dto: CreateBlogDto,
+    dto: UpdateBlogDto,
     image: Express.Multer.File,
     user: User,
   ) {
@@ -216,7 +226,11 @@ export class BlogService extends CrudService<
       this.logger.debug('Saving blog image to cloud...');
       const uploadBlogImage: any = image
         ? await this.cloudinaryService.uploadBlogImage(image, id).catch((e) => {
-            throw new BadRequestException('Invalid file type.', e);
+            console.log(e);
+            throw new BadRequestException(
+              'Invalid file type, must be an image.',
+              e,
+            );
           })
         : null;
       this.logger.debug('Image saved to the cloud successfully');
@@ -229,6 +243,7 @@ export class BlogService extends CrudService<
 
       return updatedBlog;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -254,6 +269,7 @@ export class BlogService extends CrudService<
       await this.cloudinaryService.deleteBlogImage(id);
       this.logger.debug('Image deleted from cloud successfully');
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }

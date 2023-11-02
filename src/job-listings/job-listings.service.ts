@@ -135,6 +135,7 @@ export class JobListingsService extends CrudService<
 
       return jobListings;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -204,6 +205,7 @@ export class JobListingsService extends CrudService<
 
       return createJobListing;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -299,6 +301,7 @@ export class JobListingsService extends CrudService<
         jobApplication,
       };
     } catch (error) {
+      console.log(error);
       return error.message;
       throw new BadRequestException(error.message);
     }
@@ -324,6 +327,7 @@ export class JobListingsService extends CrudService<
 
   //     return `...downloading ${resume} and ${coverLetter}`;
   //   } catch (error) {
+  // console.log(error);
   //     throw new BadRequestException(error.message);
   //   }
   // }
@@ -348,6 +352,7 @@ export class JobListingsService extends CrudService<
   //       coverLetter: coverLetter.secure_url,
   //     };
   //   } catch (error) {
+  // console.log(error);
   //     throw new BadRequestException(error.message);
   //   }
   // }
@@ -358,7 +363,14 @@ export class JobListingsService extends CrudService<
     user: User,
   ): Promise<JobListing> {
     try {
-      const { title, jobResponsibilities, category, ...rest } = dto;
+      const {
+        title,
+        jobResponsibilities,
+        category,
+        jobType,
+        experienceLevel,
+        ...rest
+      } = dto;
 
       const foundUser = await this.prisma.user.findUnique({
         where: { id: user.id },
@@ -387,6 +399,8 @@ export class JobListingsService extends CrudService<
           jobResponsibilities,
           ...rest,
           category: category as Category,
+          jobType: jobType as JobType,
+          experienceLevel: experienceLevel as ExperienceLevel,
           updatedBy: foundUser.id,
           status: JOB_LISTING_STATUS.PENDING,
         },
@@ -394,6 +408,7 @@ export class JobListingsService extends CrudService<
 
       return updateJobListing;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -456,6 +471,7 @@ export class JobListingsService extends CrudService<
         await Promise.all(prismaDeletePromises);
       });
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -542,6 +558,7 @@ export class JobListingsService extends CrudService<
 
       return jobListings;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -634,7 +651,7 @@ export class JobListingsService extends CrudService<
       const jobListings = await this.findManyPaginate(args, {
         cursor,
         direction,
-        orderBy: orderBy || { createdAt: direction },
+        orderBy: orderBy || { status: direction },
         size,
       });
 
@@ -642,6 +659,7 @@ export class JobListingsService extends CrudService<
 
       return jobListings;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }

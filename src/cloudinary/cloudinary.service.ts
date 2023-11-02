@@ -13,12 +13,46 @@ export class CloudinaryService {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async uploadFile(
     file,
-    resourceType = ResourceType.Raw,
+    resourceType = ResourceType.Auto,
     request,
     id: string,
     type: string,
   ) {
     try {
+      const file_formats = [
+        'txt',
+        'doc',
+        'docx',
+        'pdf',
+        'xlsx',
+        'csv',
+        'xls',
+        'ppt',
+        'pptx',
+        'html',
+        'htm',
+        'css',
+        'js',
+        'md',
+        'markdown',
+        'log',
+        'xml',
+        'json',
+        'csv',
+        'sql',
+        'db',
+        'yml',
+        'yaml',
+        'json',
+        'jsonl',
+        'js',
+        'jsx',
+        'ts',
+        'tsx',
+        'html',
+        'css',
+        'txt',
+      ];
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { uploader, url } = v2;
 
@@ -31,6 +65,7 @@ export class CloudinaryService {
             resource_type: resourceType,
             //   raw_convert: 'aspose',
             discard_original_filename: false,
+            allowed_formats: file_formats,
             filename_override: file[0].originalname,
             //   notification_url: `http://${request}`,
           },
@@ -47,6 +82,7 @@ export class CloudinaryService {
                 result,
               };
             } catch (error) {
+              console.log(error);
               return error;
             }
           },
@@ -55,6 +91,7 @@ export class CloudinaryService {
         uploadStream.end(file[0].buffer);
       });
     } catch (error) {
+      console.log(error);
       return error.message;
       throw new BadRequestException(error.message);
     }
@@ -87,6 +124,7 @@ export class CloudinaryService {
         });
       });
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -112,6 +150,7 @@ export class CloudinaryService {
           .end(file.buffer);
       });
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -151,6 +190,7 @@ export class CloudinaryService {
         );
       });
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -181,7 +221,26 @@ export class CloudinaryService {
       await Promise.all(deletionPromises);
       return 'All files deleted successfully';
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
+  }
+
+  async convertToPdf(convert: string[]) {
+    return new Promise((resolve, reject) => {
+      for (const url of convert) {
+        v2.uploader.multi(url, { format: 'pdf' }),
+          (error, result) => {
+            if (error) {
+              console.error(`Error converting file: ${url}`, error);
+              reject(error);
+            } else {
+              if (result.result === 'not found') return resolve(result);
+              console.log('File converted successfully:', result);
+              resolve(result);
+            }
+          };
+      }
+    });
   }
 }

@@ -10,6 +10,8 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiConsumes, ApiTags, ApiBody } from '@nestjs/swagger';
@@ -30,6 +32,7 @@ import { UpdateProfilePictureDto } from '../dto/update-profile-picture.dto';
 
 @ApiTags(API_TAGS.PROFILE)
 @ApiBearerAuth()
+@UsePipes(new ValidationPipe())
 @Controller('user/profile')
 export class ProfileController {
   constructor(private userService: UserService) {}

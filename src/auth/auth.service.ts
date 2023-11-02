@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@@common/prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
-import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { JwtPayload } from './payload/jwt.payload.interface';
 import { JwtService } from '@nestjs/jwt';
@@ -29,6 +28,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { CacheKeysEnums } from '@@/common/cache/cache.enums';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { GoogleStrategy } from './google.strategy';
+import { TEMPLATE } from '@@/mailer/interfaces';
 
 @Injectable()
 export class AuthService {
@@ -101,6 +101,7 @@ export class AuthService {
         user: rest,
       };
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -127,7 +128,7 @@ export class AuthService {
         throw new ConflictException(AUTH_ERROR_MSGS.GOOGLE_ALREDY_EXISTS);
 
       if (user.status === USER_STATUS.SUSPENDED) {
-        throw new UnauthorizedException(AUTH_ERROR_MSGS.SUSPENDED_ACCOUNT);
+        throw new UnauthorizedException(AUTH_ERROR_MSGS.SUSPENDED_ACCOUNT_USER);
       }
 
       if (!(await AppUtilities.validator(password, user.password)))
@@ -164,13 +165,93 @@ export class AuthService {
         },
       };
     } catch (e) {
-      throw e;
+      console.log(e);
+      throw new BadRequestException(e.message);
     }
   }
 
-  async logout(response: Response): Promise<void> {
-    response.clearCookie('accessToken');
-    response.clearCookie('refreshToken');
+  async adminLogin(loginDto: LoginDto, ip: string): Promise<any> {
+    try {
+      // eslint-disable-next-line prefer-const
+      let { email, password } = loginDto;
+      email = email.toLowerCase();
+      const user = await this.prisma.user.findFirst({
+        where: {
+          email: {
+            equals: email,
+            mode: 'insensitive',
+          },
+        },
+        include: { role: true, profile: true },
+      });
+
+      if (!user)
+        throw new UnauthorizedException(AUTH_ERROR_MSGS.CREDENTIALS_DONT_MATCH);
+
+      if (user.googleId)
+        throw new ConflictException(AUTH_ERROR_MSGS.GOOGLE_ALREDY_EXISTS);
+
+      if (user.status === USER_STATUS.SUSPENDED) {
+        throw new UnauthorizedException(
+          AUTH_ERROR_MSGS.SUSPENDED_ACCOUNT_ADMIN,
+        );
+      }
+
+      if (user.role.code !== ROLE_TYPE.ADMIN) {
+        throw new UnauthorizedException(
+          `You do not have the necessary permissions to perform this action. Only administrators are allowed to access this feature.`,
+        );
+      }
+
+      if (!(await AppUtilities.validator(password, user.password)))
+        throw new UnauthorizedException(AUTH_ERROR_MSGS.INVALID_CREDENTIALS);
+
+      const jwtPayload: JwtPayload = { email: user.email, userId: user.id };
+      const accessToken: string = await this.jwtService.sign(jwtPayload, {
+        secret: this.configService.get('JWT_SECRET'),
+        expiresIn: this.configService.get('JWT_EXPIRES'),
+      });
+
+      const refreshToken: string = await this.jwtService.sign(jwtPayload, {
+        secret: this.configService.get('JWT_SECRET'),
+        expiresIn: this.configService.get('JWT_EXPIRES'),
+      });
+
+      const currentDate = moment().toISOString();
+
+      const updatedUser = await this.prisma.user.update({
+        where: { email: email.toLowerCase() },
+        data: {
+          lastLogin: currentDate,
+          lastLoginIp: ip,
+        },
+        include: { profile: { select: { firstName: true, lastName: true } } },
+      });
+
+      const properties = AppUtilities.extractProperties(updatedUser);
+
+      const { rest } = properties;
+
+      return {
+        accessToken,
+        refreshToken,
+        user: {
+          ...rest,
+        },
+      };
+    } catch (e) {
+      console.log(e);
+      throw new BadRequestException(e.message);
+    }
+  }
+
+  tokenBlacklist = new Set<string>();
+
+  async logout(user: User, req: any) {
+    console.log(req.headers['authorization']);
+    const token = req.headers['authorization'];
+
+    this.tokenBlacklist.add(token);
   }
 
   async sendMail(forgotPassDto: SendResetLinkDto): Promise<any> {
@@ -185,11 +266,20 @@ export class AuthService {
       if (foundUser.googleId)
         throw new UnauthorizedException(AUTH_ERROR_MSGS.GOOGLE_CANNOT_RESET);
 
-      const sendMail = await this.mailerService.sendUpdateEmail(email);
+      if (foundUser.status === USER_STATUS.SUSPENDED)
+        throw new UnauthorizedException(
+          AUTH_ERROR_MSGS.SUSPENDED_ACCOUNT_RESET_USER,
+        );
+
+      const sendMail = await this.mailerService.sendUpdateEmail(
+        email,
+        TEMPLATE.RESET_MAIL_USER,
+      );
 
       return sendMail;
     } catch (e) {
-      throw e;
+      console.log(e);
+      throw new BadRequestException(e.message);
     }
   }
 
@@ -222,6 +312,7 @@ export class AuthService {
     await this.cacheService.remove(CacheKeysEnums.REQUESTS + requestId);
     return updatedUser;
   }
+
   async updatePassword(dto: UpdatePasswordDto, user: User): Promise<any> {
     try {
       const { oldPassword, newPassword, confirmNewPassword } = dto;
@@ -264,6 +355,7 @@ export class AuthService {
         user: rest,
       };
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
@@ -325,9 +417,11 @@ export class AuthService {
 
       return { user, accessToken: access_token, refreshToken };
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }
+
   async googleLoginCallback(user: User, email: string, ip: string) {
     const token: string = await this.generateAccessToken(user);
     const refreshToken: string = await this.generateRefreshToken(user);
@@ -373,6 +467,7 @@ export class AuthService {
 
       return { updatedUser, accessToken: token, refreshToken };
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }

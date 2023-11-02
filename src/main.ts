@@ -64,7 +64,9 @@ async function bootstrap() {
     }),
   );
 
-  app.enableCors();
+  app.enableCors({
+    origin: '*',
+  });
   // const allowedOrigins = [
   //   /^(https:\/\/([^\.]*\.)?ngrok\.io)$/i,
   //   // 'https://job-search-api.onrender.com',

@@ -9,7 +9,7 @@ import { AdminModule } from './admin/admin.module';
 import { MailerModule } from './mailer/mailer.module';
 import { MailerModule as NestMailerModule } from '@nestjs-modules/mailer';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import { CacheModule as NestCacheModule } from '@nestjs/cache-manager';
 import { CacheService } from './common/cache/cache.service';
@@ -26,6 +26,8 @@ import { BookmarksModule } from './user/bookmarks/bookmarks.module';
 import { GoogleStrategy } from './auth/google.strategy';
 import { join } from 'path';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { ConvertModule } from './convert/convert.module';
+import { TokenBlacklistMiddleware } from './common/middleware/tokenBlacklist.middlware';
 
 @Module({
   imports: [
@@ -46,9 +48,9 @@ import { ServeStaticModule } from '@nestjs/serve-static';
       isGlobal: true,
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
-        const redisPassword = configService.get<string>('redis.password'); // Get the password from environment
-        const host = configService.get<string>('redis.host'); // Get the password from environment
-        const port = configService.get<string>('redis.port'); // Get the password from environment
+        const redisPassword = configService.get<string>('redis.password');
+        const host = configService.get<string>('redis.host');
+        const port = configService.get<string>('redis.port');
         return {
           isGlobal: true,
           store: redisStore,
@@ -88,6 +90,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
     ServeStaticModule.forRoot({
       rootPath: join('src/mailer/public/images'),
     }),
+    ConvertModule,
   ],
   controllers: [HealthController],
   providers: [
@@ -103,4 +106,8 @@ import { ServeStaticModule } from '@nestjs/serve-static';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(TokenBlacklistMiddleware).forRoutes('*');
+  }
+}

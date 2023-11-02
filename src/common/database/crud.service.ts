@@ -95,10 +95,12 @@ export abstract class CrudService<D extends Delegate, T extends CrudMapType> {
       return await this.delegate.delete(data);
     } catch (error) {
       if (error?.code === 'P2003') {
+        console.log(error);
         throw new NotAcceptableException(
           "Record cannot be deleted because it's linked to other record(s)",
         );
       }
+      console.log(error);
       throw error;
     }
   }
@@ -303,6 +305,7 @@ export abstract class CrudService<D extends Delegate, T extends CrudMapType> {
           cursor: { id: decodedCursor.id },
         };
       } catch (error) {
+        console.log(error);
         throw new NotAcceptableException('Invalid cursor!');
       }
     } else {

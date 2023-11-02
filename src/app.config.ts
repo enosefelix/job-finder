@@ -20,7 +20,7 @@ const config = {
   app: {
     name: 'job-finder-be',
     port: parseInt(env('APP_PORT', 3001)),
-    hostname: env('APP_HOSTNAME', '0.0.0.0'),
+    hostname: env('APP_HOSTNAME', 'localhost'),
     host: env(
       'APP_HOST',
       `http://localhost:${parseInt(env('APP_PORT', 3001))}`,

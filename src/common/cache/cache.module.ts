@@ -10,6 +10,7 @@ import { CacheService } from './cache.service';
   imports: [
     ConfigModule.forRoot(),
     NestCacheModule.registerAsync({
+      isGlobal: true,
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         const redisPassword = configService.get<string>('redis.password');
@@ -20,7 +21,7 @@ import { CacheService } from './cache.service';
           store: redisStore,
           host: host,
           port: port,
-          password: redisPassword, // Use the password
+          password: redisPassword,
         };
       },
       inject: [ConfigService],

@@ -6,11 +6,11 @@ import { PassportModule } from '@nestjs/passport';
 import { JobListingsService } from '@@job-listings/job-listings.service';
 import { CloudinaryService } from '@@cloudinary/cloudinary.service';
 import { AuthService } from '@@auth/auth.service';
-import { JwtModule, JwtService } from '@nestjs/jwt';
+import { JwtModule } from '@nestjs/jwt';
 import { MailerService } from '@@mailer/mailer.service';
 import { CacheService } from '@@common/cache/cache.service';
 import { JwtStrategy } from '@@auth/jwt.strategy';
-import { ConfigService } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BlogService } from './blog/blog.service';
 import { UserService } from '@@/user/user.service';
 import { BookmarksService } from '@@/user/bookmarks/bookmarks.service';
@@ -20,7 +20,7 @@ import { GoogleStrategy } from '@@/auth/google.strategy';
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
-      imports: [],
+      imports: [ConfigModule.forRoot()],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('jwt.secret'),
@@ -35,7 +35,6 @@ import { GoogleStrategy } from '@@/auth/google.strategy';
     JobListingsService,
     CloudinaryService,
     AuthService,
-    JwtService,
     JwtStrategy,
     MailerService,
     CacheService,

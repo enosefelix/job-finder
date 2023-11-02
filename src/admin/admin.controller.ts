@@ -1,8 +1,6 @@
 import { AdminService } from './admin.service';
 import {
   Controller,
-  UsePipes,
-  ValidationPipe,
   UseGuards,
   Get,
   Query,
@@ -33,15 +31,21 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
 import { BlogFilterDto } from './blog/dto/blog-filter.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
+import { SendResetLinkDto } from '@@/auth/dto/send-reset-link.dto';
+import { AuthService } from '@@/auth/auth.service';
+import { ResetPasswordDto } from '@@/auth/dto/reset-password.dto';
+import { UpdateBlogDto } from './blog/dto/update-blog.dto';
+import { UpdatePasswordDto } from '@@/auth/dto/updatePassword.dto';
+import { UpdateJobListingStatusDto } from './dto/approve-jobListing.dto';
 
 @ApiBearerAuth()
 @ApiTags(API_TAGS.ADMIN)
-@UsePipes(new ValidationPipe())
 @Controller('admin')
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly blogService: BlogService,
+    private readonly authService: AuthService,
   ) {}
 
   @ApiResponseMeta({ message: 'Login successful' })
@@ -49,6 +53,34 @@ export class AdminController {
   @Post('/login')
   async adminSignup(@Body() dto: LoginDto, @RealIP() ip: string) {
     return this.adminService.login(dto, ip);
+  }
+
+  @ApiResponseMeta({
+    message:
+      'We have sent an email to the email registered to this Admin account containing further instructions to reset your password!',
+  })
+  @Post('auth/request-password-reset')
+  async sendMail(@Body() dto: SendResetLinkDto): Promise<any> {
+    return this.adminService.sendResetMail(dto);
+  }
+
+  @ApiResponseMeta({ message: 'Password Reset Successfully' })
+  @Patch('pages/auth/reset-password/:requestId')
+  async resetPassword(
+    @Param('requestId') requestId: string,
+    @Body() dto: ResetPasswordDto,
+  ) {
+    return this.adminService.resetPassword(requestId, dto);
+  }
+
+  @ApiResponseMeta({ message: 'Password Updated Successfully' })
+  @UseGuards(AuthGuard())
+  @Patch('auth/change-password')
+  async updatePassword(
+    @Body() dto: UpdatePasswordDto,
+    @GetUser() user: User,
+  ): Promise<any> {
+    return this.adminService.updatePassword(dto, user);
   }
 
   @Get('/users')
@@ -120,15 +152,12 @@ export class AdminController {
   @ApiResponseMeta({ message: 'Job Listing Approved Successfully' })
   @Patch('/job-listings/:id/approve')
   @UseGuards(AdminAuthGuard)
-  async approveJobListing(@Param('id') id: string, @GetUser() user: User) {
-    return this.adminService.approveJobListing(id, user);
-  }
-
-  @ApiResponseMeta({ message: 'Job Listing Denied Successfully' })
-  @Patch('/job-listing/:id/reject')
-  @UseGuards(AdminAuthGuard)
-  async rejectJobListing(@Param('id') id: string, @GetUser() user: User) {
-    return this.adminService.rejectJobListing(id, user);
+  async updateJoblistingStatus(
+    @Body() dto: UpdateJobListingStatusDto,
+    @Param('id') id: string,
+    @GetUser() user: User,
+  ) {
+    return this.adminService.updateJobListingStatus(dto, id, user);
   }
 
   @ApiResponseMeta({ message: 'Job Listing Deleted Successfully' })
@@ -138,7 +167,7 @@ export class AdminController {
     return this.adminService.deleteJobListing(id, user);
   }
 
-  @ApiResponseMeta({ message: 'Job Listing Approved Successfully' })
+  @ApiResponseMeta({ message: 'Job Listing Updated Successfully' })
   @Patch('/job-listings/:id/update')
   @UseGuards(AdminAuthGuard)
   async updateJobListing(
@@ -198,17 +227,13 @@ export class AdminController {
   @UseInterceptors(FileInterceptor('image'))
   @UseGuards(AuthGuard())
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: CreateBlogDto })
+  @ApiBody({ type: UpdateBlogDto })
   async updateBlog(
     @Param('id') id: string,
     @UploadedFile() image: Express.Multer.File,
-    @Body() dto: CreateBlogDto,
+    @Body() dto: UpdateBlogDto,
     @GetUser() user: User,
   ) {
-    if (!image || Object.keys(image).every((key) => !image[key])) {
-      // Handle validation error
-      throw new BadRequestException(VALIDATION_ERROR_MSG.UPLOAD_BLOG_IMAGE);
-    }
     return this.blogService.updateBlog(id, dto, image, user);
   }
 

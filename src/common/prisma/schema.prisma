@@ -202,13 +202,13 @@ model JobListing {
   approvedById        String?                  @unique @db.Uuid
   postedById          String?                  @db.Uuid
   jobRequirements     String[]                 @db.VarChar
-  category            Category
+  category            Category?
   salary              String                   @db.VarChar
-  experienceLevel     ExperienceLevel
+  experienceLevel     ExperienceLevel?
   location            String                   @db.VarChar
   industry            String                   @db.VarChar
   companyDetails      String                   @db.VarChar
-  jobType             JobType
+  jobType             JobType?
   status              ApprovalStatus           @default(Pending)
   benefits            String[]                 @db.VarChar
   createdAt           DateTime                 @default(now()) @db.Timestamptz(6)

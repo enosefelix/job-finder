@@ -36,6 +36,7 @@ export class AdminAuthGuard extends AuthGuard('jwt') {
         'User cannot access this resource. You are not an Admin',
       );
     } catch (error) {
+      console.log(error);
       throw new UnauthorizedException(error.message);
     }
   }

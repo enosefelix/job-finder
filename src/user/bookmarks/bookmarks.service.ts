@@ -40,6 +40,7 @@ export class BookmarksService extends CrudService<
       AppUtilities.addTimestamps(bookmarks);
       return bookmarks;
     } catch (error) {
+      console.log(error);
       throw new BadRequestException(error.message);
     }
   }

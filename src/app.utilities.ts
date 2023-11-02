@@ -16,6 +16,7 @@ import {
 } from 'date-fns';
 import * as moment from 'moment';
 import { customAlphabet } from 'nanoid';
+import _ from 'lodash';
 const CUSTOM_CHARS =
   '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -179,200 +180,6 @@ export class AppUtilities {
     }, {});
   }
 
-  // public static async addTimestamps(jobListings: any) {
-  //   try {
-  //     if (
-  //       Array.isArray(jobListings) &&
-  //       jobListings.every((item) => typeof item === 'object')
-  //     ) {
-  //       (jobListings as { pageEdges?: any[] })?.pageEdges?.map(
-  //         (jobListing: any) => {
-  //           const timeStamp = moment(jobListing?.node?.createdAt).toDate();
-  //           const currentTime = moment().toDate();
-  //           const secondsAgo = differenceInSeconds(currentTime, timeStamp);
-  //           const minutesAgo = Math.floor(secondsAgo / 60);
-  //           const hoursAgo = Math.floor(secondsAgo / 3600);
-  //           const daysAgo = differenceInCalendarDays(currentTime, timeStamp);
-  //           const weeksAgo = Math.floor(daysAgo / 7);
-  //           const monthsAgo = differenceInCalendarMonths(
-  //             currentTime,
-  //             timeStamp,
-  //           );
-  //           const yearsAgo = differenceInCalendarYears(currentTime, timeStamp);
-
-  //           let timeStampText: string;
-
-  //           if (secondsAgo < 60) {
-  //             timeStampText = `${secondsAgo} second${
-  //               secondsAgo === 1 ? '' : 's'
-  //             } ago`;
-  //           } else if (secondsAgo < 3600) {
-  //             timeStampText = `${minutesAgo} minute${
-  //               minutesAgo === 1 ? '' : 's'
-  //             } ago`;
-  //           } else if (secondsAgo < 86400) {
-  //             timeStampText = `${hoursAgo} hour${
-  //               hoursAgo === 1 ? '' : 's'
-  //             } ago`;
-  //           } else if (daysAgo < 7) {
-  //             timeStampText = `${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
-  //           } else if (daysAgo < 30) {
-  //             timeStampText = `${weeksAgo} week${
-  //               weeksAgo === 1 ? '' : 's'
-  //             } ago`;
-  //           } else if (monthsAgo < 12) {
-  //             timeStampText = `${monthsAgo} month${
-  //               monthsAgo === 1 ? '' : 's'
-  //             } ago`;
-  //           } else {
-  //             timeStampText = `${yearsAgo} year${
-  //               yearsAgo === 1 ? '' : 's'
-  //             } ago`;
-  //           }
-
-  //           jobListing.node.timeStamp = timeStampText;
-  //         },
-  //       );
-  //     } else if (typeof jobListings === 'object') {
-  //       const pageEdges = await jobListings;
-
-  //       pageEdges.pageEdges.forEach((edge: any) => {
-  //         const jobListing = edge.node;
-  //         const timeStamp = moment(jobListing?.createdAt).toDate();
-  //         const currentTime = moment().toDate();
-  //         const secondsAgo = differenceInSeconds(currentTime, timeStamp);
-  //         const minutesAgo = Math.floor(secondsAgo / 60);
-  //         const hoursAgo = Math.floor(secondsAgo / 3600);
-  //         const daysAgo = differenceInCalendarDays(currentTime, timeStamp);
-  //         const weeksAgo = Math.floor(daysAgo / 7);
-  //         const monthsAgo = differenceInCalendarMonths(currentTime, timeStamp);
-  //         const yearsAgo = differenceInCalendarYears(currentTime, timeStamp);
-
-  //         let timeStampText: string;
-
-  //         if (secondsAgo < 60) {
-  //           timeStampText = `${secondsAgo} second${
-  //             secondsAgo === 1 ? '' : 's'
-  //           } ago`;
-  //         } else if (secondsAgo < 3600) {
-  //           timeStampText = `${minutesAgo} minute${
-  //             minutesAgo === 1 ? '' : 's'
-  //           } ago`;
-  //         } else if (secondsAgo < 86400) {
-  //           timeStampText = `${hoursAgo} hour${hoursAgo === 1 ? '' : 's'} ago`;
-  //         } else if (daysAgo < 7) {
-  //           timeStampText = `${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
-  //         } else if (daysAgo < 30) {
-  //           timeStampText = `${weeksAgo} week${weeksAgo === 1 ? '' : 's'} ago`;
-  //         } else if (monthsAgo < 12) {
-  //           timeStampText = `${monthsAgo} month${
-  //             monthsAgo === 1 ? '' : 's'
-  //           } ago`;
-  //         } else {
-  //           timeStampText = `${yearsAgo} year${yearsAgo === 1 ? '' : 's'} ago`;
-  //         }
-
-  //         jobListing.timeStamp = timeStampText;
-  //       });
-  //     } else {
-  //       console.error('jobListings is neither an array nor an object');
-  //       throw new BadRequestException(
-  //         'An error occured, if error persists contact Support',
-  //       );
-  //     }
-  //   } catch (error) {
-  //     console.error('Error while mapping jobListings:', error);
-  //     throw error;
-  //   }
-  // }
-
-  // public static async addTimestampBase(jobListings: any) {
-  //   if (
-  //     Array.isArray(jobListings) &&
-  //     jobListings.every((item) => typeof item === 'object')
-  //   ) {
-  //     try {
-  //       jobListings?.map((jobListing: any) => {
-  //         const timeStamp = moment(jobListing.createdAt).toDate();
-  //         const currentTime = moment().toDate();
-  //         const secondsAgo = differenceInSeconds(currentTime, timeStamp);
-  //         const minutesAgo = Math.floor(secondsAgo / 60);
-  //         const hoursAgo = Math.floor(secondsAgo / 3600);
-  //         const daysAgo = differenceInCalendarDays(currentTime, timeStamp);
-  //         const weeksAgo = Math.floor(daysAgo / 7);
-  //         const monthsAgo = differenceInCalendarMonths(currentTime, timeStamp);
-  //         const yearsAgo = differenceInCalendarYears(currentTime, timeStamp);
-
-  //         let timeStampText: string;
-
-  //         if (secondsAgo < 60) {
-  //           timeStampText = `${secondsAgo} second${
-  //             secondsAgo === 1 ? '' : 's'
-  //           } ago`;
-  //         } else if (secondsAgo < 3600) {
-  //           timeStampText = `${minutesAgo} minute${
-  //             minutesAgo === 1 ? '' : 's'
-  //           } ago`;
-  //         } else if (secondsAgo < 86400) {
-  //           timeStampText = `${hoursAgo} hour${hoursAgo === 1 ? '' : 's'} ago`;
-  //         } else if (daysAgo < 7) {
-  //           timeStampText = `${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
-  //         } else if (daysAgo < 30) {
-  //           timeStampText = `${weeksAgo} week${weeksAgo === 1 ? '' : 's'} ago`;
-  //         } else if (monthsAgo < 12) {
-  //           timeStampText = `${monthsAgo} month${
-  //             monthsAgo === 1 ? '' : 's'
-  //           } ago`;
-  //         } else {
-  //           timeStampText = `${yearsAgo} year${yearsAgo === 1 ? '' : 's'} ago`;
-  //         }
-  //         jobListing.timeStamp = timeStampText;
-  //       });
-  //     } catch (error) {
-  //       console.error('Error while mapping jobListings:', error);
-  //       throw error;
-  //     }
-  //   } else if (typeof jobListings === 'object') {
-  //     const timeStamp = moment(jobListings.createdAt).toDate();
-  //     const currentTime = moment().toDate();
-  //     const secondsAgo = differenceInSeconds(currentTime, timeStamp);
-  //     const minutesAgo = Math.floor(secondsAgo / 60);
-  //     const hoursAgo = Math.floor(secondsAgo / 3600);
-  //     const daysAgo = differenceInCalendarDays(currentTime, timeStamp);
-  //     const weeksAgo = Math.floor(daysAgo / 7);
-  //     const monthsAgo = differenceInCalendarMonths(currentTime, timeStamp);
-  //     const yearsAgo = differenceInCalendarYears(currentTime, timeStamp);
-
-  //     let timeStampText: string;
-
-  //     if (secondsAgo < 60) {
-  //       timeStampText = `${secondsAgo} second${
-  //         secondsAgo === 1 ? '' : 's'
-  //       } ago`;
-  //     } else if (secondsAgo < 3600) {
-  //       timeStampText = `${minutesAgo} minute${
-  //         minutesAgo === 1 ? '' : 's'
-  //       } ago`;
-  //     } else if (secondsAgo < 86400) {
-  //       timeStampText = `${hoursAgo} hour${hoursAgo === 1 ? '' : 's'} ago`;
-  //     } else if (daysAgo < 7) {
-  //       timeStampText = `${daysAgo} day${daysAgo === 1 ? '' : 's'} ago`;
-  //     } else if (daysAgo < 30) {
-  //       timeStampText = `${weeksAgo} week${weeksAgo === 1 ? '' : 's'} ago`;
-  //     } else if (monthsAgo < 12) {
-  //       timeStampText = `${monthsAgo} month${monthsAgo === 1 ? '' : 's'} ago`;
-  //     } else {
-  //       timeStampText = `${yearsAgo} year${yearsAgo === 1 ? '' : 's'} ago`;
-  //     }
-  //     jobListings.timeStamp = timeStampText;
-  //   } else {
-  //     console.error('jobListings is neither an array nor an object');
-  //     throw new BadRequestException(
-  //       'An error occured, if error persists contact Support',
-  //     );
-  //   }
-  // }
-
   public static async addTimestamps(jobListings: any) {
     const getTimeAgoText = (timestamp: Date) => {
       const currentTime = new Date();
@@ -509,8 +316,6 @@ export class AppUtilities {
   }
 
   public static async calculateReadingTime(content, wordsPerMinute = 200) {
-    // Assuming an average reading speed of 200 words per minute
-    // Remove extra white spaces and line breaks
     const cleanedContent = content.replace(/\s+/g, ' ').trim();
 
     // Calculate word count
@@ -527,4 +332,14 @@ export class AppUtilities {
 
     return nanoid();
   }
+
+  public static unflatten = (flattedObject: any) => {
+    const result = [];
+    _.keys(flattedObject).forEach(function (key) {
+      key.split('|').forEach((path, resultIndex) => {
+        _.set(result, `[${resultIndex}].${path}`, flattedObject[key]);
+      });
+    });
+    return result;
+  };
 }
