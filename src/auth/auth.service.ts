@@ -29,9 +29,12 @@ import { CacheKeysEnums } from '@@/common/cache/cache.enums';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { GoogleStrategy } from './google.strategy';
 import { TEMPLATE } from '@@/mailer/interfaces';
+import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
+import { CookieOptions, Response } from 'express';
 
 @Injectable()
 export class AuthService {
+  private prismaClient;
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
@@ -39,7 +42,10 @@ export class AuthService {
     private mailerService: MailerService,
     private cacheService: CacheService,
     private googleStrategy: GoogleStrategy,
-  ) {}
+    private prismaClientManager: PrismaClientManager,
+  ) {
+    this.prismaClient = this.prismaClientManager.getPrismaClient();
+  }
 
   async signup(signupDto: SignupDto): Promise<any> {
     try {
@@ -47,7 +53,7 @@ export class AuthService {
       let { email, password, firstName, lastName, confirmPassword } = signupDto;
       email = email.toLowerCase();
 
-      const findUser = await this.prisma.user.findUnique({
+      const findUser = await this.prismaClient.user.findUnique({
         where: { email },
       });
 
@@ -64,13 +70,13 @@ export class AuthService {
 
       const hashedPassword = await AppUtilities.hasher(password);
 
-      const role = await this.prisma.role.findFirst({
+      const role = await this.prismaClient.role.findFirst({
         where: { code: ROLE_TYPE.USER },
       });
 
       if (!role) throw new NotFoundException('Roles not setup');
 
-      const user = await this.prisma.user.create({
+      const user = await this.prismaClient.user.create({
         data: {
           email,
           password: hashedPassword,
@@ -86,7 +92,7 @@ export class AuthService {
         include: { profile: true },
       });
 
-      await this.prisma.user.update({
+      await this.prismaClient.user.update({
         where: { email: email.toLowerCase() },
         data: {
           profileId: user.profile.id,
@@ -106,12 +112,16 @@ export class AuthService {
     }
   }
 
-  async login(loginDto: LoginDto, ip: string): Promise<any> {
+  async login(
+    loginDto: LoginDto,
+    ip: string,
+    response: Response,
+  ): Promise<any> {
     try {
       // eslint-disable-next-line prefer-const
       let { email, password } = loginDto;
       email = email.toLowerCase();
-      const user = await this.prisma.user.findFirst({
+      const user = await this.prismaClient.user.findFirst({
         where: {
           email: {
             equals: email,
@@ -144,7 +154,7 @@ export class AuthService {
 
       const currentDate = moment().toISOString();
 
-      const updatedUser = await this.prisma.user.update({
+      const updatedUser = await this.prismaClient.user.update({
         where: { email: email.toLowerCase() },
         data: {
           lastLogin: currentDate,
@@ -153,7 +163,17 @@ export class AuthService {
         include: { profile: { select: { firstName: true, lastName: true } } },
       });
 
+      await this.cacheService.set(
+        `${CacheKeysEnums.TOKENS}:${user.id}`,
+        jwtPayload,
+        parseInt(process.env.JWT_EXPIRES),
+      );
+
       const properties = AppUtilities.extractProperties(updatedUser);
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const [, , sessionId] = accessToken.split('.');
+      this.setCookies(accessToken, response);
 
       const { rest } = properties;
 
@@ -170,95 +190,40 @@ export class AuthService {
     }
   }
 
-  async adminLogin(loginDto: LoginDto, ip: string): Promise<any> {
+  async adminLogin(
+    loginDto: LoginDto,
+    ip: string,
+    response: Response,
+  ): Promise<any> {
     try {
-      // eslint-disable-next-line prefer-const
-      let { email, password } = loginDto;
-      email = email.toLowerCase();
-      const user = await this.prisma.user.findFirst({
-        where: {
-          email: {
-            equals: email,
-            mode: 'insensitive',
-          },
-        },
-        include: { role: true, profile: true },
+      const user = await this.prismaClient.user.findUnique({
+        where: { email: loginDto.email },
+        include: { role: true },
       });
-
-      if (!user)
-        throw new UnauthorizedException(AUTH_ERROR_MSGS.CREDENTIALS_DONT_MATCH);
-
-      if (user.googleId)
-        throw new ConflictException(AUTH_ERROR_MSGS.GOOGLE_ALREDY_EXISTS);
-
-      if (user.status === USER_STATUS.SUSPENDED) {
-        throw new UnauthorizedException(
-          AUTH_ERROR_MSGS.SUSPENDED_ACCOUNT_ADMIN,
-        );
-      }
-
-      if (user.role.code !== ROLE_TYPE.ADMIN) {
+      if (user?.role?.code !== ROLE_TYPE.ADMIN) {
         throw new UnauthorizedException(
           `You do not have the necessary permissions to perform this action. Only administrators are allowed to access this feature.`,
         );
       }
-
-      if (!(await AppUtilities.validator(password, user.password)))
-        throw new UnauthorizedException(AUTH_ERROR_MSGS.INVALID_CREDENTIALS);
-
-      const jwtPayload: JwtPayload = { email: user.email, userId: user.id };
-      const accessToken: string = await this.jwtService.sign(jwtPayload, {
-        secret: this.configService.get('JWT_SECRET'),
-        expiresIn: this.configService.get('JWT_EXPIRES'),
-      });
-
-      const refreshToken: string = await this.jwtService.sign(jwtPayload, {
-        secret: this.configService.get('JWT_SECRET'),
-        expiresIn: this.configService.get('JWT_EXPIRES'),
-      });
-
-      const currentDate = moment().toISOString();
-
-      const updatedUser = await this.prisma.user.update({
-        where: { email: email.toLowerCase() },
-        data: {
-          lastLogin: currentDate,
-          lastLoginIp: ip,
-        },
-        include: { profile: { select: { firstName: true, lastName: true } } },
-      });
-
-      const properties = AppUtilities.extractProperties(updatedUser);
-
-      const { rest } = properties;
-
-      return {
-        accessToken,
-        refreshToken,
-        user: {
-          ...rest,
-        },
-      };
+      return await this.login(loginDto, ip, response);
     } catch (e) {
       console.log(e);
       throw new BadRequestException(e.message);
     }
   }
 
-  tokenBlacklist = new Set<string>();
-
-  async logout(user: User, req: any) {
-    console.log(req.headers['authorization']);
-    const token = req.headers['authorization'];
-
-    this.tokenBlacklist.add(token);
+  async logout(userId: string) {
+    await this.cacheService.get(`${CacheKeysEnums.TOKENS}:${userId}`);
+    await this.cacheService.remove(`${CacheKeysEnums.TOKENS}:${userId}`);
   }
 
   async sendMail(forgotPassDto: SendResetLinkDto): Promise<any> {
     try {
       const { email } = forgotPassDto;
 
-      const foundUser = await this.prisma.user.findFirst({ where: { email } });
+      const foundUser = await this.prismaClient.user.findFirst({
+        where: { email },
+      });
 
       if (!foundUser)
         throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
@@ -307,7 +272,7 @@ export class AuthService {
       },
     };
 
-    const updatedUser = await this.prisma.user.update(dto);
+    const updatedUser = await this.prismaClient.user.update(dto);
 
     await this.cacheService.remove(CacheKeysEnums.REQUESTS + requestId);
     return updatedUser;
@@ -316,7 +281,7 @@ export class AuthService {
   async updatePassword(dto: UpdatePasswordDto, user: User): Promise<any> {
     try {
       const { oldPassword, newPassword, confirmNewPassword } = dto;
-      const foundUser = await this.prisma.user.findUnique({
+      const foundUser = await this.prismaClient.user.findUnique({
         where: { id: user.id },
       });
 
@@ -339,7 +304,7 @@ export class AuthService {
 
       const hashedPassword = await AppUtilities.hasher(newPassword);
 
-      const updatedPassword = await this.prisma.user.update({
+      const updatedPassword = await this.prismaClient.user.update({
         where: { id: user.id },
         data: {
           password: hashedPassword,
@@ -361,12 +326,12 @@ export class AuthService {
   }
 
   async findOrCreateUser(dto: GoogleAuthDto, accessToken: string) {
-    let user = await this.prisma.user.findUnique({
+    let user = await this.prismaClient.user.findUnique({
       where: { email: dto.email },
       include: { profile: true },
     });
 
-    const role = await this.prisma.role.findUnique({
+    const role = await this.prismaClient.role.findUnique({
       where: {
         code: ROLE_TYPE.USER,
       },
@@ -379,7 +344,7 @@ export class AuthService {
     password = await AppUtilities.hasher(password);
 
     if (!user) {
-      user = await this.prisma.user.create({
+      user = await this.prismaClient.user.create({
         data: {
           email: dto.email,
           password,
@@ -428,7 +393,7 @@ export class AuthService {
 
     const currentDate = moment().toISOString();
 
-    const updatedUser = await this.prisma.user.update({
+    const updatedUser = await this.prismaClient.user.update({
       where: { email: email.toLowerCase() },
       data: {
         lastLogin: currentDate,
@@ -457,7 +422,7 @@ export class AuthService {
 
       const currentDate = moment().toISOString();
 
-      const updatedUser = await this.prisma.user.update({
+      const updatedUser = await this.prismaClient.user.update({
         where: { googleId: user.googleId },
         data: {
           lastLogin: currentDate,
@@ -473,7 +438,9 @@ export class AuthService {
   }
 
   async verifyUser(user: User): Promise<User> {
-    const foundUser = this.prisma.user.findUnique({ where: { id: user.id } });
+    const foundUser = this.prismaClient.user.findUnique({
+      where: { id: user.id },
+    });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
@@ -491,5 +458,16 @@ export class AuthService {
       secret: this.configService.get('JWT_SECRET'),
       expiresIn: this.configService.get('JWT_EXPIRES'),
     });
+  }
+
+  private setCookies(token: string, response: Response) {
+    const maxAge = parseInt(process.env.JWT_EXPIRES);
+    const expires = new Date(new Date().getTime() + maxAge);
+    const cookieOptions: CookieOptions = { maxAge, expires, httpOnly: true };
+    if (['remote', 'prod'].includes(this.configService.get('app.stage'))) {
+      cookieOptions.sameSite = 'none';
+      cookieOptions.secure = true;
+    }
+    response.cookie('access_token', token, cookieOptions);
   }
 }

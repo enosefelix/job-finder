@@ -13,6 +13,7 @@ import { JwtService } from '@nestjs/jwt';
 import { JobListingApplicationsService } from '@@/job-listing-applications/job-listing-applications.service';
 import { BookmarksService } from './bookmarks/bookmarks.service';
 import { GoogleStrategy } from '@@/auth/google.strategy';
+import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
 
 @Module({
   imports: [PassportModule.register({ defaultStrategy: 'jwt' })],
@@ -29,6 +30,7 @@ import { GoogleStrategy } from '@@/auth/google.strategy';
     JwtService,
     JobListingApplicationsService,
     BookmarksService,
+    PrismaClientManager,
   ],
 })
 export class UserModule {}

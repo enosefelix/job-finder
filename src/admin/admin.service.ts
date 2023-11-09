@@ -10,6 +10,7 @@ import {
 import { JobListing, Prisma, PrismaClient, User } from '@prisma/client';
 import {
   AUTH_ERROR_MSGS,
+  BLOG_STATUS,
   Category,
   ExperienceLevel,
   JOB_APPLICATION_ERORR,
@@ -41,9 +42,12 @@ import { ResetPasswordDto } from '@@/auth/dto/reset-password.dto';
 import { TEMPLATE } from '@@/mailer/interfaces';
 import { UpdatePasswordDto } from '@@/auth/dto/updatePassword.dto';
 import { UpdateJobListingStatusDto } from './dto/approve-jobListing.dto';
+import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
+import { Response } from 'express';
 
 @Injectable()
 export class AdminService {
+  private prismaClient;
   private readonly logger = new Logger(JobListingsService.name);
   constructor(
     private prisma: PrismaService,
@@ -55,17 +59,24 @@ export class AdminService {
     private userService: UserService,
     private mailerService: MailerService,
     private cacheService: CacheService,
-  ) {}
+    private prismaClientManager: PrismaClientManager,
+  ) {
+    this.prismaClient = this.prismaClientManager.getPrismaClient();
+  }
 
-  async login(loginDto: LoginDto, ip: string): Promise<any> {
-    return this.authService.adminLogin(loginDto, ip);
+  async login(
+    loginDto: LoginDto,
+    ip: string,
+    response: Response,
+  ): Promise<any> {
+    return this.authService.adminLogin(loginDto, ip, response);
   }
 
   async sendResetMail(forgotPassDto: SendResetLinkDto): Promise<any> {
     try {
       const { email } = forgotPassDto;
 
-      const foundUser = await this.prisma.user.findFirst({
+      const foundUser = await this.prismaClient.user.findFirst({
         where: { email },
         include: { role: true },
       });
@@ -78,7 +89,7 @@ export class AdminService {
           AUTH_ERROR_MSGS.SUSPENDED_ACCOUNT_RESET_ADMIN,
         );
 
-      if (foundUser.role.code !== ROLE_TYPE.ADMIN)
+      if (foundUser?.role?.code !== ROLE_TYPE.ADMIN)
         throw new UnauthorizedException(
           'You do not have the necessary permissions to perform this action. Only administrators are allowed to access this feature.',
         );
@@ -127,7 +138,7 @@ export class AdminService {
       },
     };
 
-    const updatedUser = await this.prisma.user.update(dto);
+    const updatedUser = await this.prismaClient.user.update(dto);
 
     await this.cacheService.remove(CacheKeysEnums.REQUESTS + requestId);
     return updatedUser;
@@ -149,12 +160,12 @@ export class AdminService {
   async updatePassword(dto: UpdatePasswordDto, user: User): Promise<any> {
     try {
       const { oldPassword, newPassword, confirmNewPassword } = dto;
-      const foundUser = await this.prisma.user.findUnique({
+      const foundUser = await this.prismaClient.user.findUnique({
         where: { id: user.id },
         include: { role: true },
       });
 
-      if (foundUser.role.code !== ROLE_TYPE.ADMIN)
+      if (foundUser?.role?.code !== ROLE_TYPE.ADMIN)
         throw new UnauthorizedException(
           'You do not have the necessary permissions to perform this action. Only administrators are allowed to access this feature.',
         );
@@ -177,7 +188,7 @@ export class AdminService {
 
       const hashedPassword = await AppUtilities.hasher(newPassword);
 
-      const updatedPassword = await this.prisma.user.update({
+      const updatedPassword = await this.prismaClient.user.update({
         where: { id: user.id },
         data: {
           password: hashedPassword,
@@ -210,7 +221,7 @@ export class AdminService {
   async getUserById(id: string, adminUser: User): Promise<any> {
     try {
       await this.authService.verifyUser(adminUser);
-      const user = await this.prisma.user.findUnique({
+      const user = await this.prismaClient.user.findUnique({
         where: { id },
         include: {
           profile: {
@@ -247,12 +258,12 @@ export class AdminService {
   async getUserJobListing(id: string, adminUser: User) {
     try {
       await this.authService.verifyUser(adminUser);
-      const user = await this.prisma.user.findUnique({
+      const user = await this.prismaClient.user.findUnique({
         where: { id },
       });
       if (!user) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-      const userJobListings = await this.prisma.jobListing.findMany({
+      const userJobListings = await this.prismaClient.jobListing.findMany({
         where: { createdBy: id },
         include: { jobApplications: true },
       });
@@ -279,7 +290,7 @@ export class AdminService {
   ): Promise<any> {
     try {
       await this.authService.verifyUser(adminUser);
-      const user = await this.prisma.user.findUnique({
+      const user = await this.prismaClient.user.findUnique({
         where: { id },
       });
 
@@ -291,7 +302,7 @@ export class AdminService {
         status === USER_STATUS.ACTIVE &&
         user.status === USER_STATUS.SUSPENDED
       ) {
-        await this.prisma.user.update({
+        await this.prismaClient.user.update({
           where: {
             id,
           },
@@ -306,7 +317,7 @@ export class AdminService {
         status === USER_STATUS.SUSPENDED &&
         user.status === USER_STATUS.ACTIVE
       ) {
-        await this.prisma.user.update({
+        await this.prismaClient.user.update({
           where: { id },
           data: {
             status: status as USER_STATUS,
@@ -314,7 +325,7 @@ export class AdminService {
           },
         });
 
-        await this.prisma.jobListing.updateMany({
+        await this.prismaClient.jobListing.updateMany({
           where: { createdBy: user.id, status: JOB_LISTING_STATUS.APPROVED },
           data: {
             status: JOB_LISTING_STATUS.PENDING,
@@ -335,25 +346,29 @@ export class AdminService {
   async deleteUser(id: string, adminUser: User): Promise<void> {
     try {
       await this.authService.verifyUser(adminUser);
-      const user = await this.prisma.user.findUnique({
+      const user = await this.prismaClient.user.findUnique({
         where: { id },
       });
 
       if (!user) throw new Error(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-      await this.prisma.jobListingApplications.deleteMany({
+      await this.prismaClient.jobListingApplications.deleteMany({
         where: { createdBy: user.id },
       });
 
-      await this.prisma.tags.deleteMany({ where: { createdBy: user.id } });
-
-      await this.prisma.bookmark.deleteMany({ where: { createdBy: user.id } });
-
-      await this.prisma.jobListing.deleteMany({
+      await this.prismaClient.tags.deleteMany({
         where: { createdBy: user.id },
       });
 
-      await this.prisma.user.delete({
+      await this.prismaClient.bookmark.deleteMany({
+        where: { createdBy: user.id },
+      });
+
+      await this.prismaClient.jobListing.deleteMany({
+        where: { createdBy: user.id },
+      });
+
+      await this.prismaClient.user.delete({
         where: { id },
       });
     } catch (error) {
@@ -370,7 +385,7 @@ export class AdminService {
     try {
       await this.authService.verifyUser(user);
 
-      const jobListing = await this.prisma.jobListing.findUnique({
+      const jobListing = await this.prismaClient.jobListing.findUnique({
         where: { id },
       });
 
@@ -382,7 +397,7 @@ export class AdminService {
         (status === JOB_LISTING_STATUS.APPROVED &&
           jobListing.status === JOB_LISTING_STATUS.REJECTED)
       ) {
-        return await this.prisma.jobListing.update({
+        return await this.prismaClient.jobListing.update({
           where: { id },
           data: {
             status: status as JOB_LISTING_STATUS,
@@ -400,7 +415,7 @@ export class AdminService {
         (status === JOB_LISTING_STATUS.REJECTED &&
           jobListing.status === JOB_LISTING_STATUS.APPROVED)
       ) {
-        return await this.prisma.jobListing.update({
+        return await this.prismaClient.jobListing.update({
           where: { id },
           data: {
             status: status as JOB_LISTING_STATUS,
@@ -416,7 +431,7 @@ export class AdminService {
         (status === JOB_LISTING_STATUS.PENDING &&
           jobListing.status === JOB_LISTING_STATUS.APPROVED)
       ) {
-        return await this.prisma.jobListing.update({
+        return await this.prismaClient.jobListing.update({
           where: { id },
           data: {
             status: status as JOB_LISTING_STATUS,
@@ -436,7 +451,7 @@ export class AdminService {
   }
 
   async deleteJobListing(id: string, user: User): Promise<void> {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
@@ -444,7 +459,7 @@ export class AdminService {
       throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
     }
 
-    const jobListing = await this.prisma.jobListing.findFirst({
+    const jobListing = await this.prismaClient.jobListing.findFirst({
       where: { id },
     });
 
@@ -453,46 +468,48 @@ export class AdminService {
     }
 
     try {
-      await this.prisma.$transaction(async (prismaClient: PrismaClient) => {
-        const prismaDeletePromises = [];
+      await this.prismaClient.$transaction(
+        async (prismaClient: PrismaClient) => {
+          const prismaDeletePromises = [];
 
-        // Delete related data in a single transaction
-        prismaDeletePromises.push(
-          prismaClient.jobListingApplications.deleteMany({
-            where: { jobListingId: id },
-          }),
-          prismaClient.tags.deleteMany({
-            where: { jobListingId: id },
-          }),
-          prismaClient.bookmark.deleteMany({
-            where: { jobListingId: id },
-          }),
-        );
+          // Delete related data in a single transaction
+          prismaDeletePromises.push(
+            prismaClient.jobListingApplications.deleteMany({
+              where: { jobListingId: id },
+            }),
+            prismaClient.tags.deleteMany({
+              where: { jobListingId: id },
+            }),
+            prismaClient.bookmark.deleteMany({
+              where: { jobListingId: id },
+            }),
+          );
 
-        const jobListingApplications =
-          await prismaClient.jobListingApplications.findMany({
-            where: { jobListingId: id },
-          });
+          const jobListingApplications =
+            await prismaClient.jobListingApplications.findMany({
+              where: { jobListingId: id },
+            });
 
-        this.logger.debug('Deleting files from cloud...');
+          this.logger.debug('Deleting files from cloud...');
 
-        for (const jobListingApplication of jobListingApplications) {
-          await this.cloudinaryService.deleteFiles([
-            jobListingApplication.resume,
-            jobListingApplication.coverLetter,
-          ]);
-        }
-        this.logger.debug('Files deleted from cloud successfully');
+          for (const jobListingApplication of jobListingApplications) {
+            await this.cloudinaryService.deleteFiles([
+              jobListingApplication.resume,
+              jobListingApplication.coverLetter,
+            ]);
+          }
+          this.logger.debug('Files deleted from cloud successfully');
 
-        prismaDeletePromises.push(
-          prismaClient.jobListing.delete({
-            where: { id },
-          }),
-        );
+          prismaDeletePromises.push(
+            prismaClient.jobListing.delete({
+              where: { id },
+            }),
+          );
 
-        // Wait for all delete operations to complete
-        await Promise.all(prismaDeletePromises);
-      });
+          // Wait for all delete operations to complete
+          await Promise.all(prismaDeletePromises);
+        },
+      );
     } catch (error) {
       console.log(error);
       throw new BadRequestException(error.message);
@@ -517,7 +534,7 @@ export class AdminService {
   async getJobListingById(id: string, user: User) {
     try {
       await this.authService.verifyUser(user);
-      const jobListing = await this.prisma.jobListing.findUnique({
+      const jobListing = await this.prismaClient.jobListing.findUnique({
         where: { id },
         include: {
           jobApplications: {
@@ -561,14 +578,14 @@ export class AdminService {
         ...rest
       } = dto;
 
-      const foundUser = await this.prisma.user.findUnique({
+      const foundUser = await this.prismaClient.user.findUnique({
         where: { id: user.id },
       });
 
       if (!foundUser)
         throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-      const jobListing = await this.prisma.jobListing.findUnique({
+      const jobListing = await this.prismaClient.jobListing.findUnique({
         where: { id },
       });
 
@@ -578,7 +595,7 @@ export class AdminService {
       // if (foundUser.id !== jobListing.createdBy)
       //   throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-      const updateJobListing = await this.prisma.jobListing.update({
+      const updateJobListing = await this.prismaClient.jobListing.update({
         where: { id },
         data: {
           title,
@@ -611,7 +628,7 @@ export class AdminService {
       ...rest
     } = dto;
 
-    const createJobListing = await this.prisma.jobListing.create({
+    const createJobListing = await this.prismaClient.jobListing.create({
       data: {
         title,
         jobResponsibilities,
@@ -633,8 +650,8 @@ export class AdminService {
   }
 
   async adminDataAggregation(user: User) {
-    const prisma = this.prisma;
-    const foundUser = await this.prisma.user.findUnique({
+    const prisma = this.prismaClient;
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
       include: { role: true },
     });
@@ -643,7 +660,7 @@ export class AdminService {
       throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
     }
 
-    if (foundUser.role.code !== ROLE_TYPE.ADMIN)
+    if (foundUser?.role?.code !== ROLE_TYPE.ADMIN)
       throw new ForbiddenException(
         'You are not permitted to access this resource',
       );
@@ -657,6 +674,10 @@ export class AdminService {
       totalNumberOfApprovedJobListings,
       totalNumberOfPendingJobListings,
       totalNumberOfRejectedJobListings,
+      totalNumberOfBlogs,
+      totalNumberOfApprovedBlogs,
+      totalNumberOfPendingBlogs,
+      totalNumberOfRejectedBlogs,
     ] = await Promise.all([
       this.totalNumberOfUsers(prisma, user),
       this.totalNumberOfActiveUsers(prisma, user),
@@ -666,6 +687,10 @@ export class AdminService {
       this.totalNumberOfApprovedJobListings(prisma),
       this.totalNumberOfPendingJobListings(prisma),
       this.totalNumberOfRejectedJobListings(prisma),
+      this.totalNumberOfBlogs(prisma),
+      this.totalNumberOfApprovedBlogs(prisma),
+      this.totalNumberOfPendingBlogs(prisma),
+      this.totalNumberOfRejectedBlogs(prisma),
     ]);
 
     return {
@@ -677,6 +702,10 @@ export class AdminService {
       totalNumberOfApprovedJobListings,
       totalNumberOfPendingJobListings,
       totalNumberOfRejectedJobListings,
+      totalNumberOfBlogs,
+      totalNumberOfApprovedBlogs,
+      totalNumberOfPendingBlogs,
+      totalNumberOfRejectedBlogs,
     };
   }
 
@@ -751,18 +780,56 @@ export class AdminService {
   }
 
   async totalNumberOfRejectedJobListings(prisma: PrismaClient) {
-    const rejectedJobListing = await prisma.jobListing.aggregate({
+    const data = await prisma.jobListing.aggregate({
       where: {
         status: JOB_LISTING_STATUS.REJECTED,
       },
       _count: true,
     });
 
-    return rejectedJobListing._count;
+    return data._count;
+  }
+
+  async totalNumberOfBlogs(prisma: PrismaClient) {
+    const data = await prisma.blog.count({
+      select: { id: true },
+    });
+
+    return data?.id;
+  }
+
+  async totalNumberOfApprovedBlogs(prisma: PrismaClient) {
+    const data = await prisma.blog.aggregate({
+      where: { status: BLOG_STATUS.APPROVED },
+      _count: true,
+    });
+
+    return data._count;
+  }
+
+  async totalNumberOfPendingBlogs(prisma: PrismaClient) {
+    const data = await prisma.blog.aggregate({
+      where: {
+        status: BLOG_STATUS.PENDING,
+      },
+      _count: true,
+    });
+    return data._count;
+  }
+
+  async totalNumberOfRejectedBlogs(prisma: PrismaClient) {
+    const data = await prisma.blog.aggregate({
+      where: {
+        status: BLOG_STATUS.REJECTED,
+      },
+      _count: true,
+    });
+
+    return data._count;
   }
 
   async allJobApplications(user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
@@ -770,14 +837,15 @@ export class AdminService {
       throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
     }
 
-    const jobApplications = await this.prisma.jobListingApplications.findMany({
-      include: {
-        jobListing: true,
-        user: {
-          select: { profile: true },
+    const jobApplications =
+      await this.prismaClient.jobListingApplications.findMany({
+        include: {
+          jobListing: true,
+          user: {
+            select: { profile: true },
+          },
         },
-      },
-    });
+      });
 
     if (jobApplications.length < 1)
       throw new NotFoundException(JOB_APPLICATION_ERORR.NO_JOBS_FOUND);

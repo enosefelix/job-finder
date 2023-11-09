@@ -9,7 +9,7 @@ import { AdminModule } from './admin/admin.module';
 import { MailerModule } from './mailer/mailer.module';
 import { MailerModule as NestMailerModule } from '@nestjs-modules/mailer';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import { CacheModule as NestCacheModule } from '@nestjs/cache-manager';
 import { CacheService } from './common/cache/cache.service';
@@ -27,10 +27,11 @@ import { GoogleStrategy } from './auth/google.strategy';
 import { join } from 'path';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { ConvertModule } from './convert/convert.module';
-import { TokenBlacklistMiddleware } from './common/middleware/tokenBlacklist.middlware';
+import { DatabaseModule } from './common/database/database.module';
 
 @Module({
   imports: [
+    DatabaseModule,
     AuthModule,
     ConfigModule.forRoot({ isGlobal: true, load: [appConfig] }),
     ThrottlerModule.forRoot([
@@ -105,9 +106,6 @@ import { TokenBlacklistMiddleware } from './common/middleware/tokenBlacklist.mid
       useClass: ThrottlerGuard,
     },
   ],
+  exports: [DatabaseModule],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(TokenBlacklistMiddleware).forRoutes('*');
-  }
-}
+export class AppModule {}

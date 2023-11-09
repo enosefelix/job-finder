@@ -13,31 +13,40 @@ import { readFileSync } from 'fs';
 import handlebars from 'handlebars';
 import { AppUtilities } from '@@/app.utilities';
 import { TEMPLATE } from './interfaces';
+import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
 
 @Injectable()
 export class MailerService {
+  private prismaClient;
   logger = new Logger(MailerService.name);
 
   constructor(
+    private prismaClientManager: PrismaClientManager,
     private mailerService: NestMailerService,
     private prisma: PrismaService,
     private cacheService: CacheService,
-  ) {}
+  ) {
+    this.prismaClient = this.prismaClientManager.getPrismaClient();
+  }
 
   async sendUpdateEmail(email: string, templateName: string) {
     try {
-      const foundUser = await this.prisma.user.findUnique({
+      const foundUser = await this.prismaClient.user.findUnique({
         where: { email },
         include: { profile: true, role: true },
       });
       const requestId = v4();
+      console.log(
+        '🚀 ~ file: mailer.service.ts:39 ~ MailerService ~ sendUpdateEmail ~ requestId:',
+        requestId,
+      );
 
       await this.cacheService.set(
         CacheKeysEnums.REQUESTS + requestId,
         {
           email,
           userId: foundUser.id,
-          role: foundUser.role.code,
+          role: foundUser?.role?.code,
         },
         parseInt(process.env.PASSWORD_RESET_EXPIRES),
       );

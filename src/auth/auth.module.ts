@@ -9,6 +9,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { MailerService } from '@@mailer/mailer.service';
 import { GoogleStrategy } from './google.strategy';
 import { CacheService } from '@@common/cache/cache.service';
+import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { CacheService } from '@@common/cache/cache.service';
   controllers: [AuthController],
   providers: [
     AuthService,
+    PrismaClientManager,
     PrismaService,
     ConfigService,
     JwtStrategy,

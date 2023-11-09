@@ -22,6 +22,7 @@ const CUSTOM_CHARS =
 
 @Injectable()
 export class AppUtilities {
+  // Error handler
   public static handleException(error: any): Error {
     console.error(AppUtilities.requestErrorHandler(error));
     const errorCode: string = error.code;
@@ -129,12 +130,14 @@ export class AppUtilities {
     return errorData;
   };
 
+  // Password hasher using bcrypt
   public static async hasher(string: string): Promise<string> {
     const saltOrRounds = 10;
     const hashedPassword = bcrypt.hash(string, saltOrRounds);
     return hashedPassword;
   }
 
+  // random string generator
   public static generateRandomString(length: number): string {
     const characters =
       'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -145,6 +148,7 @@ export class AppUtilities {
     return result;
   }
 
+  // Password validator using bcrypt
   public static async validator(
     password: string,
     hashedPassword: string,
@@ -152,6 +156,7 @@ export class AppUtilities {
     return bcrypt.compare(password, hashedPassword);
   }
 
+  // Base64 encoder
   public static encode(
     data: string,
     encoding: BufferEncoding = 'base64',
@@ -159,6 +164,7 @@ export class AppUtilities {
     return Buffer.from(data).toString(encoding);
   }
 
+  // Base64 decoder
   public static decode(
     data: string,
     encoding: BufferEncoding = 'base64',
@@ -166,20 +172,7 @@ export class AppUtilities {
     return Buffer.from(data, encoding).toString();
   }
 
-  public static selectMultipleFields(fields: any[]): Record<string, true> {
-    return fields.reduce((selectObject, field) => {
-      selectObject[field] = true;
-      return selectObject;
-    }, {});
-  }
-
-  public static removeFields(fields: string[]): Record<string, true> {
-    return fields.reduce((selectObject, field) => {
-      selectObject[field] = true;
-      return selectObject;
-    }, {});
-  }
-
+  // Adding timestamps to data using the createdAt key (pageEdges)
   public static async addTimestamps(jobListings: any) {
     const getTimeAgoText = (timestamp: Date) => {
       const currentTime = new Date();
@@ -240,6 +233,7 @@ export class AppUtilities {
     }
   }
 
+  // Adding timestamps to data using the createdAt key
   public static async addTimestampBase(jobListings: any) {
     const getTimeAgoText = (timestamp: Date) => {
       const currentTime = new Date();
@@ -291,6 +285,7 @@ export class AppUtilities {
     }
   }
 
+  // Removing sensitive data from user object
   public static extractProperties(user: User) {
     const extractedProperties = {};
     const restProperties = {};
@@ -302,9 +297,11 @@ export class AppUtilities {
     };
 
     for (const key in user) {
+      // if it has the key in the properttyMappings object, then use the value of the key as the new key
       if (propertyMappings.hasOwnProperty(key)) {
         extractedProperties[propertyMappings[key]] = user[key];
       } else {
+        // else, use the key as the new key
         restProperties[key] = user[key];
       }
     }
@@ -315,6 +312,7 @@ export class AppUtilities {
     };
   }
 
+  // Logic for calculating reading time for blogs
   public static async calculateReadingTime(content, wordsPerMinute = 200) {
     const cleanedContent = content.replace(/\s+/g, ' ').trim();
 

@@ -90,6 +90,7 @@ export abstract class CrudService<D extends Delegate, T extends CrudMapType> {
     return this.delegate.createMany(data);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async delete(data: T['delete'], authUser?: User) {
     try {
       return await this.delegate.delete(data);
@@ -231,7 +232,6 @@ export abstract class CrudService<D extends Delegate, T extends CrudMapType> {
     const {
       size = 25,
       cursor,
-      // buttonNum,
       orderBy: mOrderBy = args?.orderBy || 'createdAt',
       direction = 'desc',
       isPaginated = 'true',

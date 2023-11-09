@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { JobListingsService } from '@@/job-listings/job-listings.service';
 import { PrismaService } from '@@/common/prisma/prisma.service';
 import { GoogleStrategy } from '@@/auth/google.strategy';
+import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
 
 @Module({
   controllers: [JobListingApplicationsController],
@@ -21,6 +22,7 @@ import { GoogleStrategy } from '@@/auth/google.strategy';
     AuthService,
     MailerService,
     CacheService,
+    PrismaClientManager,
     JwtService,
   ],
 })

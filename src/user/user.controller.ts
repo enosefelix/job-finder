@@ -53,13 +53,6 @@ export class UserController {
     return this.userService.bookmarkJobListing(id, user);
   }
 
-  // @ApiResponseMeta({ message: 'Job Listing Unbookmarked Successfully' })
-  // @Delete('/job-listings/:id/unbookmark')
-  // @UseGuards(AuthGuard())
-  // async unbookmarkJobListing(@Param('id') id: string, @GetUser() user: User) {
-  //   return this.userService.unbookmarkJobListing(id, user);
-  // }
-
   @Throttle({ default: { limit: 5, ttl: 30000 } })
   @Post('/job-listings/create')
   @UseGuards(AuthGuard())

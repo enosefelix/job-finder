@@ -7,6 +7,7 @@ import { PrismaService } from '@@common/prisma/prisma.service';
 import { CacheService } from '@@common/cache/cache.service';
 import { CacheModule } from '@nestjs/cache-manager';
 import { JwtService } from '@nestjs/jwt';
+import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
 
 @Module({
   imports: [
@@ -33,7 +34,13 @@ import { JwtService } from '@nestjs/jwt';
     CacheModule.register({}),
   ],
   controllers: [MailerController],
-  providers: [MailerService, PrismaService, CacheService, JwtService],
+  providers: [
+    MailerService,
+    PrismaService,
+    CacheService,
+    JwtService,
+    PrismaClientManager,
+  ],
   exports: [MailerService],
 })
 export class MailerModule {}

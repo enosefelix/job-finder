@@ -10,21 +10,27 @@ import { UserJobListingApplicationDto } from './dto/get-user-joblisting-applicat
 import { AUTH_ERROR_MSGS } from '@@/common/interfaces';
 import { CrudService } from '@@/common/database/crud.service';
 import { AppUtilities } from '@@/app.utilities';
+import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
 
 @Injectable()
 export class JobListingApplicationsService extends CrudService<
   Prisma.JobListingApplicationsDelegate<Prisma.RejectOnNotFound>,
   JobListingApplicationsMapType
 > {
-  constructor(private prisma: PrismaService) {
+  private prismaClient;
+  constructor(
+    private prisma: PrismaService,
+    private prismaClientManager: PrismaClientManager,
+  ) {
     super(prisma.jobListingApplications);
+    this.prismaClient = this.prismaClientManager.getPrismaClient();
   }
   async getMyApplications(
     { cursor, direction, orderBy, size, ...dto }: UserJobListingApplicationDto,
     user: User,
   ) {
     try {
-      const foundUser = await this.prisma.user.findUnique({
+      const foundUser = await this.prismaClient.user.findUnique({
         where: { id: user.id },
       });
 

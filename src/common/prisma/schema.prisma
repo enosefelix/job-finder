@@ -46,6 +46,12 @@ enum ApprovalStatus {
   Rejected
 }
 
+enum BlogStatus {
+  Pending
+  Approved
+  Rejected
+}
+
 enum BillingCycle {
   Monthly
   Quarterly
@@ -118,13 +124,14 @@ model User {
   tags                   Tags[]                   @relation("TaggedUser")
   taggedBy               Tags[]                   @relation("TaggedByUser")
   bookmarks              Bookmark[]
-  approvedBy             JobListing?              @relation("ApprovedBy")
+  approvedByJobListing   JobListing?              @relation("ApprovedByJoblisting")
   jobListing             JobListing[]             @relation("PostedBy")
   jobListingApplications JobListingApplications[]
   role                   Role?                    @relation(fields: [roleId], references: [id])
   profile                Profile?
   subscription           Subscription?
   comment                Comment[]
+  approvedByBlog         Blog?                    @relation("ApprovedByBlog")
   Blog                   Blog[]
 
   @@map("user")
@@ -220,7 +227,7 @@ model JobListing {
   bookmarks           Bookmark[]
   languages           String[]
   jobApplications     JobListingApplications[]
-  approvedBy          User?                    @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedBy          User?                    @relation("ApprovedByJoblisting", fields: [approvedById], references: [id])
   postedBy            User?                    @relation("PostedBy", fields: [postedById], references: [id])
   comments            Comment[]
 
@@ -228,18 +235,22 @@ model JobListing {
 }
 
 model Blog {
-  id               String   @id @default(uuid()) @db.Uuid
-  title            String   @db.VarChar
-  body             String   @db.VarChar
-  briefDescription String   @db.VarChar
-  image            String?  @db.VarChar
-  readTime         String   @db.VarChar
-  authorId         String   @db.Uuid
-  createdAt        DateTime @default(now()) @db.Timestamptz(6)
-  createdBy        String?  @db.Uuid
-  updatedAt        DateTime @default(now()) @updatedAt @db.Timestamptz(6)
-  updatedBy        String?  @db.Uuid
-  author           User     @relation(fields: [authorId], references: [id])
+  id               String     @id @default(uuid()) @db.Uuid
+  title            String     @db.VarChar
+  body             String     @db.VarChar
+  briefDescription String     @db.VarChar
+  image            String?    @db.VarChar
+  readTime         String     @db.VarChar
+  authorId         String     @db.Uuid
+  approvedById     String?    @unique @db.Uuid
+  postedById       String?    @db.Uuid
+  status           BlogStatus @default(Pending)
+  createdAt        DateTime   @default(now()) @db.Timestamptz(6)
+  createdBy        String?    @db.Uuid
+  updatedAt        DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+  updatedBy        String?    @db.Uuid
+  approvedBy       User?      @relation("ApprovedByBlog", fields: [approvedById], references: [id])
+  author           User       @relation(fields: [authorId], references: [id])
 
   @@map("blog")
 }

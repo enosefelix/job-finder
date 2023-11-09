@@ -1,34 +1,31 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsArray,
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsArray, IsEnum, IsOptional, IsString } from 'class-validator';
 import { Category, ExperienceLevel, JobType } from '@@common/interfaces';
 
 export class CreateJobListingDto {
-  @ApiProperty()
-  @IsNotEmpty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   title: string;
 
-  @ApiProperty()
-  @IsNotEmpty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   companyName: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   companyDetails: string;
 
   @ApiPropertyOptional()
   @IsArray()
+  @IsOptional()
   jobResponsibilities: string[];
 
   @ApiPropertyOptional()
   @IsArray()
+  @IsOptional()
   jobRequirements: string[];
 
   @ApiPropertyOptional()
@@ -42,7 +39,7 @@ export class CreateJobListingDto {
   })
   @IsEnum(ExperienceLevel, { each: true })
   @IsOptional()
-  experienceLevel: ExperienceLevel | null | string = '';
+  experienceLevel: ExperienceLevel;
 
   @ApiPropertyOptional({
     enum: JobType,
@@ -51,20 +48,19 @@ export class CreateJobListingDto {
   })
   @IsEnum(JobType, { each: true })
   @IsOptional()
-  jobType: JobType | null | string = '';
+  jobType: JobType;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsString()
   industry: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsString()
   location: string;
 
   @ApiPropertyOptional({
-    description: 'Health Insurance, Dental Insurance',
+    description: 'Health Insurance, Paid Time Off',
   })
-  Optionall;
   @IsArray()
   @IsOptional()
   benefits: string[];
@@ -72,9 +68,9 @@ export class CreateJobListingDto {
   @ApiPropertyOptional({
     description: 'English, Spanish',
   })
-  @IsOptional()
   @IsArray()
-  languages?: string[];
+  @IsOptional()
+  languages: string[];
 
   @ApiPropertyOptional({
     description: 'Nodejs, MongoDB',
@@ -87,7 +83,6 @@ export class CreateJobListingDto {
     enum: Category,
     description: 'Hybrid | Onsite | Remote',
   })
-  @IsEnum(Category, { each: true })
   @IsOptional()
-  category: Category | null | string = '';
+  category: Category | null;
 }

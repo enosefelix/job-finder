@@ -9,6 +9,7 @@ import { CacheService } from '@@/common/cache/cache.service';
 import { MailerService } from '@@/mailer/mailer.service';
 import { CloudinaryService } from '@@/cloudinary/cloudinary.service';
 import { GoogleStrategy } from '@@/auth/google.strategy';
+import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
 @Module({
   controllers: [BlogController],
   providers: [
@@ -21,6 +22,7 @@ import { GoogleStrategy } from '@@/auth/google.strategy';
     GoogleStrategy,
     CacheService,
     CloudinaryService,
+    PrismaClientManager,
   ],
 })
 export class BlogModule {}

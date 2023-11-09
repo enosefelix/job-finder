@@ -22,6 +22,7 @@ export class ConvertService {
     });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async convertFileToPDF(file: Express.Multer.File, dto: FileDto) {
     const filePath = file.buffer.toString('base64');
     console.log(

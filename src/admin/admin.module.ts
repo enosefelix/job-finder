@@ -15,6 +15,7 @@ import { BlogService } from './blog/blog.service';
 import { UserService } from '@@/user/user.service';
 import { BookmarksService } from '@@/user/bookmarks/bookmarks.service';
 import { GoogleStrategy } from '@@/auth/google.strategy';
+import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { GoogleStrategy } from '@@/auth/google.strategy';
     UserService,
     GoogleStrategy,
     BookmarksService,
+    PrismaClientManager,
   ],
 })
 export class AdminModule {}

@@ -12,6 +12,7 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  Res,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiConsumes, ApiTags, ApiBody } from '@nestjs/swagger';
 import { API_TAGS, VALIDATION_ERROR_MSG } from '@@common/interfaces';
@@ -29,7 +30,6 @@ import { BlogService } from './blog/blog.service';
 import { CreateBlogDto } from './blog/dto/create-blog.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
-import { BlogFilterDto } from './blog/dto/blog-filter.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { SendResetLinkDto } from '@@/auth/dto/send-reset-link.dto';
 import { AuthService } from '@@/auth/auth.service';
@@ -37,6 +37,9 @@ import { ResetPasswordDto } from '@@/auth/dto/reset-password.dto';
 import { UpdateBlogDto } from './blog/dto/update-blog.dto';
 import { UpdatePasswordDto } from '@@/auth/dto/updatePassword.dto';
 import { UpdateJobListingStatusDto } from './dto/approve-jobListing.dto';
+import { UpdateBlogStatusDto } from './blog/dto/update-blog-status.dto';
+import { AdminBlogFilterDto } from './dto/admin-blogs.dto';
+import { Response } from 'express';
 
 @ApiBearerAuth()
 @ApiTags(API_TAGS.ADMIN)
@@ -49,10 +52,13 @@ export class AdminController {
   ) {}
 
   @ApiResponseMeta({ message: 'Login successful' })
-  // @ApiOperation({ summary: 'Deprecated Route', deprecated: true })
   @Post('/login')
-  async adminSignup(@Body() dto: LoginDto, @RealIP() ip: string) {
-    return this.adminService.login(dto, ip);
+  async adminSignup(
+    @Body() dto: LoginDto,
+    @RealIP() ip: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    return this.adminService.login(dto, ip.toString(), response);
   }
 
   @ApiResponseMeta({
@@ -110,13 +116,6 @@ export class AdminController {
   ) {
     return this.adminService.suspendUser(dto, id, user);
   }
-
-  // @ApiResponseMeta({ message: 'User Activated Successfully' })
-  // @Patch('/user/:id/unsuspend')
-  // @UseGuards(AdminAuthGuard)
-  // async unsuspendUser(@Param('id') id: string, @GetUser() user: User) {
-  //   return this.adminService.unsuspendUser(id, user);
-  // }
 
   @ApiResponseMeta({ message: 'User Deleted Successfully' })
   @Delete('/user/:id/delete')
@@ -194,7 +193,7 @@ export class AdminController {
 
   @Get('/my-blogs')
   @UseGuards(AdminAuthGuard)
-  async getMyBlogs(@Query() dto: BlogFilterDto, @GetUser() user: User) {
+  async getMyBlogs(@Query() dto: AdminBlogFilterDto, @GetUser() user: User) {
     return this.blogService.getMyBlogs(dto, user);
   }
 
@@ -225,7 +224,7 @@ export class AdminController {
   @ApiResponseMeta({ message: 'Blog Updated Successfully' })
   @Patch('blogs/:id/update')
   @UseInterceptors(FileInterceptor('image'))
-  @UseGuards(AuthGuard())
+  @UseGuards(AdminAuthGuard)
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UpdateBlogDto })
   async updateBlog(
@@ -235,6 +234,17 @@ export class AdminController {
     @GetUser() user: User,
   ) {
     return this.blogService.updateBlog(id, dto, image, user);
+  }
+
+  @ApiResponseMeta({ message: 'Blog Updated Successfully' })
+  @UseGuards(AdminAuthGuard)
+  @Patch('/blogs/:id/approve')
+  async updateBlogStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateBlogStatusDto,
+    @GetUser() user: User,
+  ) {
+    return this.blogService.updateBlogStatus(id, dto, user);
   }
 
   @ApiResponseMeta({ message: 'Blog Deleted Successfully' })

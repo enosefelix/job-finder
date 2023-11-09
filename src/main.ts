@@ -11,6 +11,7 @@ import { RequestInterceptor } from './common/interceptors/request.interceptor';
 import { ConfigService } from '@nestjs/config';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { ErrorsInterceptor } from './common/interceptors/errors.interceptor';
+import { PrismaService } from './common/prisma/prisma.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -36,6 +37,9 @@ async function bootstrap() {
   if (environment !== 'production') {
     initSwagger(app, appHost);
   }
+
+  const prismaService = app.get(PrismaService);
+  await prismaService.enableShutdownHooks(app);
 
   app.useGlobalInterceptors(
     new RequestInterceptor(),

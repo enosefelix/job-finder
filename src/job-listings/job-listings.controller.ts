@@ -43,11 +43,6 @@ export class JobListingsController {
     return this.jobListingsService.getJobListingById(id);
   }
 
-  // @Get('jobListingApplication/download/:id')
-  // async downloadJobListingApplication(@Param('id') id: string) {
-  //   return this.jobListingsService.downloadFiles(id);
-  // }
-
   @Throttle({ default: { limit: 5, ttl: 30000 } })
   @Post('/:id/apply')
   @UseInterceptors(

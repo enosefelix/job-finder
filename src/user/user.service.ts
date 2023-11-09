@@ -35,20 +35,24 @@ import { UserMapType } from './user.maptype';
 import { BookmarksService } from './bookmarks/bookmarks.service';
 import { UpdateProfilePictureDto } from './dto/update-profile-picture.dto';
 import { GetBookmarkDto } from './bookmarks/dto/get-bookmarks.dto';
+import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
 
 @Injectable()
 export class UserService extends CrudService<
   Prisma.UserDelegate<Prisma.RejectOnNotFound>,
   UserMapType
 > {
+  private prismaClient;
   constructor(
     private jobListingService: JobListingsService,
     private prisma: PrismaService,
     private cloudinaryService: CloudinaryService,
     private authService: AuthService,
     private bookmarkService: BookmarksService,
+    private prismaClientManager: PrismaClientManager,
   ) {
     super(prisma.user);
+    this.prismaClient = this.prismaClientManager.getPrismaClient();
   }
 
   async createJobListing(dto: CreateJobListingDto, user: User) {
@@ -60,7 +64,7 @@ export class UserService extends CrudService<
   }
 
   async viewJobListing(id: string, user: User) {
-    const jobListing = await this.prisma.jobListing.findFirst({
+    const jobListing = await this.prismaClient.jobListing.findFirst({
       where: { id, createdBy: user.id },
       include: { jobApplications: true },
     });
@@ -82,14 +86,15 @@ export class UserService extends CrudService<
   }
 
   async getMySingleApplication(id: string, user: User) {
-    const jobApplication = await this.prisma.jobListingApplications.findFirst({
-      where: { id, createdBy: user.id },
-      include: { jobListing: true },
-    });
+    const jobApplication =
+      await this.prismaClient.jobListingApplications.findFirst({
+        where: { id, createdBy: user.id },
+        include: { jobListing: true },
+      });
     if (!jobApplication)
       throw new NotFoundException(JOB_APPLICATION_ERORR.JOB_APPLICATION);
 
-    const jobListing = await this.prisma.jobListing.findFirst({
+    const jobListing = await this.prismaClient.jobListing.findFirst({
       where: { jobApplications: { some: { id: jobApplication.id } } },
     });
 
@@ -159,7 +164,7 @@ export class UserService extends CrudService<
   }
 
   async viewProfile(user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
       select: {
         profile: {
@@ -182,13 +187,13 @@ export class UserService extends CrudService<
 
   async updateProfile(dto: UpdateProfileDto, user: User) {
     try {
-      const foundUser = await this.prisma.user.findUnique({
+      const foundUser = await this.prismaClient.user.findUnique({
         where: { id: user.id },
       });
 
       if (!foundUser)
         throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
-      const updateProfile = await this.prisma.profile.update({
+      const updateProfile = await this.prismaClient.profile.update({
         where: { userId: user.id },
         data: {
           ...dto,
@@ -218,13 +223,13 @@ export class UserService extends CrudService<
       : null;
     const profilePicture = uploadProfilePic?.secure_url || '';
 
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    await this.prisma.profile.update({
+    await this.prismaClient.profile.update({
       where: { userId: user.id },
       data: {
         profilePic: profilePicture,
@@ -234,14 +239,14 @@ export class UserService extends CrudService<
   }
 
   async addTechnicalSkill(dto: TechnicalSkillDto, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
       select: { profile: true },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    return await this.prisma.technicalSkill.create({
+    return await this.prismaClient.technicalSkill.create({
       data: {
         ...dto,
         profile: { connect: { userId: user.id } },
@@ -251,11 +256,11 @@ export class UserService extends CrudService<
   }
 
   async editTechnicalSkill(id: string, dto: TechnicalSkillDto, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
-    const skill = await this.prisma.technicalSkill.findFirst({
+    const skill = await this.prismaClient.technicalSkill.findFirst({
       where: { id, createdBy: user.id },
     });
 
@@ -266,7 +271,7 @@ export class UserService extends CrudService<
     if (user.id !== skill.createdBy)
       throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-    return await this.prisma.technicalSkill.update({
+    return await this.prismaClient.technicalSkill.update({
       where: { id },
       data: {
         ...dto,
@@ -276,13 +281,13 @@ export class UserService extends CrudService<
   }
 
   async deleteTechnicalSkill(id: string, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    const skill = await this.prisma.technicalSkill.findFirst({
+    const skill = await this.prismaClient.technicalSkill.findFirst({
       where: {
         id,
         createdBy: user.id,
@@ -294,20 +299,20 @@ export class UserService extends CrudService<
     if (skill.createdBy !== user.id)
       throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-    await this.prisma.technicalSkill.delete({
+    await this.prismaClient.technicalSkill.delete({
       where: { id },
     });
   }
 
   async addSoftSkill(dto: SoftSkillDto, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
       select: { profile: true },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    return await this.prisma.softSkill.create({
+    return await this.prismaClient.softSkill.create({
       data: {
         ...dto,
         profile: { connect: { userId: user.id } },
@@ -317,11 +322,11 @@ export class UserService extends CrudService<
   }
 
   async editSoftSkill(id: string, dto: SoftSkillDto, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
-    const skill = await this.prisma.softSkill.findFirst({
+    const skill = await this.prismaClient.softSkill.findFirst({
       where: { id, createdBy: user.id },
     });
 
@@ -332,7 +337,7 @@ export class UserService extends CrudService<
     if (user.id !== skill.createdBy)
       throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-    return await this.prisma.softSkill.update({
+    return await this.prismaClient.softSkill.update({
       where: { id },
       data: {
         ...dto,
@@ -342,13 +347,13 @@ export class UserService extends CrudService<
   }
 
   async deleteSoftSkill(id: string, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    const skill = await this.prisma.softSkill.findFirst({
+    const skill = await this.prismaClient.softSkill.findFirst({
       where: {
         id,
         createdBy: user.id,
@@ -360,13 +365,13 @@ export class UserService extends CrudService<
     if (skill.createdBy !== user.id)
       throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-    await this.prisma.softSkill.delete({
+    await this.prismaClient.softSkill.delete({
       where: { id },
     });
   }
 
   async addEducationHistory(user: User, dto: EducationHistDto) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
@@ -383,7 +388,7 @@ export class UserService extends CrudService<
 
     moment(startDate).toISOString();
 
-    const educationHistory = await this.prisma.educationalHistory.create({
+    const educationHistory = await this.prismaClient.educationalHistory.create({
       data: {
         startDate,
         endDate,
@@ -397,7 +402,7 @@ export class UserService extends CrudService<
   }
 
   async editEducationHistory(id: string, dto: EducationHistDto, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
@@ -414,7 +419,7 @@ export class UserService extends CrudService<
 
     moment(startDate).toISOString();
 
-    const educationHist = await this.prisma.educationalHistory.findFirst({
+    const educationHist = await this.prismaClient.educationalHistory.findFirst({
       where: { id, createdBy: user.id },
     });
 
@@ -423,7 +428,7 @@ export class UserService extends CrudService<
     if (educationHist.createdBy !== user.id)
       throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-    return await this.prisma.educationalHistory.update({
+    return await this.prismaClient.educationalHistory.update({
       where: { id },
       data: {
         startDate,
@@ -435,13 +440,13 @@ export class UserService extends CrudService<
   }
 
   async deleteEducationHistory(id: string, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    const educationHist = await this.prisma.educationalHistory.findFirst({
+    const educationHist = await this.prismaClient.educationalHistory.findFirst({
       where: { id, createdBy: user.id },
     });
 
@@ -450,13 +455,13 @@ export class UserService extends CrudService<
     if (educationHist.createdBy !== user.id)
       throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-    return await this.prisma.educationalHistory.delete({
+    return await this.prismaClient.educationalHistory.delete({
       where: { id },
     });
   }
 
   async addWorkExperiences(dto: WorkExperienceDto, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
@@ -473,7 +478,7 @@ export class UserService extends CrudService<
 
     moment(startDate).toISOString();
 
-    const workExperience = await this.prisma.workExperience.create({
+    const workExperience = await this.prismaClient.workExperience.create({
       data: {
         endDate,
         startDate,
@@ -487,13 +492,13 @@ export class UserService extends CrudService<
   }
 
   async editWorkExperiences(id: string, dto: WorkExperienceDto, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    const workExperience = await this.prisma.workExperience.findFirst({
+    const workExperience = await this.prismaClient.workExperience.findFirst({
       where: { id, createdBy: user.id },
     });
 
@@ -513,7 +518,7 @@ export class UserService extends CrudService<
 
     moment(startDate).toISOString();
 
-    return await this.prisma.workExperience.update({
+    return await this.prismaClient.workExperience.update({
       where: { id },
       data: {
         startDate,
@@ -525,13 +530,13 @@ export class UserService extends CrudService<
   }
 
   async deleteWorkExperiences(id: string, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    const workExperience = await this.prisma.workExperience.findFirst({
+    const workExperience = await this.prismaClient.workExperience.findFirst({
       where: { id, createdBy: user.id },
     });
 
@@ -540,19 +545,19 @@ export class UserService extends CrudService<
     if (workExperience.createdBy !== user.id)
       throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-    return await this.prisma.workExperience.delete({
+    return await this.prismaClient.workExperience.delete({
       where: { id },
     });
   }
 
   async addLanguages(dto: LanguagesDto, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    return await this.prisma.languages.create({
+    return await this.prismaClient.languages.create({
       data: {
         ...dto,
         createdBy: user.id,
@@ -562,13 +567,13 @@ export class UserService extends CrudService<
   }
 
   async editLanguages(id: string, dto: LanguagesDto, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    const languages = await this.prisma.languages.findFirst({
+    const languages = await this.prismaClient.languages.findFirst({
       where: { id, createdBy: user.id },
     });
 
@@ -577,7 +582,7 @@ export class UserService extends CrudService<
     if (languages.createdBy !== user.id)
       throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-    return await this.prisma.languages.update({
+    return await this.prismaClient.languages.update({
       where: { id },
       data: {
         ...dto,
@@ -587,13 +592,13 @@ export class UserService extends CrudService<
   }
 
   async deleteLanguages(id: string, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    const language = await this.prisma.languages.findFirst({
+    const language = await this.prismaClient.languages.findFirst({
       where: { id, createdBy: user.id },
     });
 
@@ -602,19 +607,19 @@ export class UserService extends CrudService<
     if (language.createdBy !== user.id)
       throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-    return await this.prisma.languages.delete({
+    return await this.prismaClient.languages.delete({
       where: { id },
     });
   }
 
   async addCertifications(dto: CertificationsDto, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    return await this.prisma.certification.create({
+    return await this.prismaClient.certification.create({
       data: {
         ...dto,
         createdBy: user.id,
@@ -624,13 +629,13 @@ export class UserService extends CrudService<
   }
 
   async editCertification(id: string, dto: CertificationsDto, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    const certification = await this.prisma.certification.findFirst({
+    const certification = await this.prismaClient.certification.findFirst({
       where: { id, createdBy: user.id },
     });
 
@@ -639,7 +644,7 @@ export class UserService extends CrudService<
     if (certification.createdBy !== user.id)
       throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-    return await this.prisma.certification.update({
+    return await this.prismaClient.certification.update({
       where: { id },
       data: {
         ...dto,
@@ -649,13 +654,13 @@ export class UserService extends CrudService<
   }
 
   async deleteCertification(id: string, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    const certification = await this.prisma.certification.findFirst({
+    const certification = await this.prismaClient.certification.findFirst({
       where: { id, createdBy: user.id },
     });
 
@@ -664,31 +669,31 @@ export class UserService extends CrudService<
     if (certification.createdBy !== user.id)
       throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-    return await this.prisma.certification.delete({
+    return await this.prismaClient.certification.delete({
       where: { id },
     });
   }
 
   async bookmarkJobListing(jobListingId: string, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    const jobListing = await this.prisma.jobListing.findFirst({
+    const jobListing = await this.prismaClient.jobListing.findFirst({
       where: { id: jobListingId, status: JOB_LISTING_STATUS.APPROVED },
     });
 
     if (!jobListing)
       throw new NotFoundException(JOB_LISTING_ERROR.JOB_NOT_FOUND);
 
-    const isBookmarked = await this.prisma.bookmark.findFirst({
+    const isBookmarked = await this.prismaClient.bookmark.findFirst({
       where: { userId: user.id, jobListingId: jobListing.id },
     });
 
     if (isBookmarked) {
-      await this.prisma.bookmark.delete({
+      await this.prismaClient.bookmark.delete({
         where: {
           id: isBookmarked.id,
         },
@@ -696,7 +701,7 @@ export class UserService extends CrudService<
 
       return { message: 'JobListing Unbookmarked Successfully' };
     } else {
-      const bookmark = await this.prisma.bookmark.create({
+      const bookmark = await this.prismaClient.bookmark.create({
         data: {
           jobListing: { connect: { id: jobListing.id } },
           user: { connect: { id: user.id } },
@@ -711,66 +716,35 @@ export class UserService extends CrudService<
     }
   }
 
-  // async unbookmarkJobListing(jobListingId: string, user: User) {
-  //   const foundUser = await this.prisma.user.findUnique({
-  //     where: { id: user.id },
-  //   });
-
-  //   if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
-
-  //   const jobListing = await this.prisma.jobListing.findFirst({
-  //     where: { id: jobListingId, status: JOB_LISTING_STATUS.APPROVED },
-  //   });
-
-  //   if (!jobListing)
-  //     throw new NotFoundException(JOB_LISTING_ERROR.JOB_NOT_FOUND);
-
-  //   const bookmark = await this.prisma.bookmark.findFirst({
-  //     where: { userId: user.id, jobListingId: jobListing.id },
-  //     include: { jobListing: true },
-  //   });
-
-  //   if (!bookmark)
-  //     throw new ForbiddenException('Job Listing is not bookmarked');
-
-  //   await this.prisma.bookmark.delete({
-  //     where: {
-  //       id: bookmark.id,
-  //     },
-  //   });
-
-  //   return bookmark;
-  // }
-
   async getMyBookmarks(dto: GetBookmarkDto, user: User) {
     return this.bookmarkService.getMyBookmarks(dto, user);
   }
 
   async tagUsers(userId: string, jobListingId: string, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    const userToTag = await this.prisma.user.findUnique({
+    const userToTag = await this.prismaClient.user.findUnique({
       where: { id: userId },
     });
 
     if (!userToTag) throw new NotFoundException('User to tag not found');
 
-    const isTagged = await this.prisma.tags.findFirst({
+    const isTagged = await this.prismaClient.tags.findFirst({
       where: { taggedUserId: userId, taggedByUserId: user.id },
     });
 
     if (isTagged)
       throw new ForbiddenException('User is already tagged in this post');
 
-    const jobListing = await this.prisma.jobListing.findFirst({
+    const jobListing = await this.prismaClient.jobListing.findFirst({
       where: { id: jobListingId },
     });
 
-    await this.prisma.tags.create({
+    await this.prismaClient.tags.create({
       data: {
         taggedUser: { connect: { id: userId } },
         taggedBy: { connect: { id: user.id } },
@@ -781,13 +755,13 @@ export class UserService extends CrudService<
   }
 
   async removeTag(userId: string, jobListingId: string, user: User) {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
     if (!foundUser) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-    const tagToDelete = await this.prisma.tags.findFirst({
+    const tagToDelete = await this.prismaClient.tags.findFirst({
       where: {
         taggedUserId: userId,
         taggedByUserId: user.id,
@@ -800,7 +774,7 @@ export class UserService extends CrudService<
         'Tag not found for this user and job listing',
       );
 
-    await this.prisma.tags.delete({
+    await this.prismaClient.tags.delete({
       where: { id: tagToDelete.id },
     });
   }

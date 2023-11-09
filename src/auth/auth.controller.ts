@@ -10,6 +10,7 @@ import {
   Param,
   Request,
   UsePipes,
+  Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -24,6 +25,7 @@ import { GetUser } from '@@common/decorators/get-user.decorator';
 import { UpdatePasswordDto } from './dto/updatePassword.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { GoogleGuard } from '@@/common/guards/oauth.guard';
+import { Response } from 'express';
 
 @ApiTags(API_TAGS.AUTH)
 @UsePipes(new ValidationPipe())
@@ -39,15 +41,24 @@ export class AuthController {
 
   @ApiResponseMeta({ message: 'You have logged in!' })
   @Post('auth/login')
-  async login(@Body() dto: LoginDto, @RealIp() ip: string): Promise<any> {
-    return this.authService.login(dto, ip);
+  async login(
+    @Body() dto: LoginDto,
+    @RealIp() ip: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<any> {
+    return this.authService.login(dto, ip.toString(), response);
   }
 
   @ApiBearerAuth()
+  @ApiResponseMeta({ statusCode: 200 })
   @UseGuards(AuthGuard())
   @Post('auth/logout')
-  async logout(@GetUser() user: User, @Request() req: any): Promise<any> {
-    return this.authService.logout(user, req);
+  async logout(@GetUser() user: any): Promise<any> {
+    await this.authService.logout(user.id);
+    user.res.setHeader(
+      'Set-Cookie',
+      'access_token=; HttpOnly; Path=/; Max-Age=0',
+    );
   }
 
   @ApiResponseMeta({

@@ -7,11 +7,17 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ROLE_TYPE } from '../interfaces';
 import { PrismaService } from '../prisma/prisma.service';
+import { PrismaClientManager } from '../database/prisma-client-manager';
 
 @Injectable()
 export class AdminAuthGuard extends AuthGuard('jwt') {
-  constructor(private readonly prisma: PrismaService) {
+  private prismaClient;
+  constructor(
+    private readonly prisma: PrismaService,
+    private prismaClientManager: PrismaClientManager,
+  ) {
     super();
+    this.prismaClient = this.prismaClientManager.getPrismaClient();
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {

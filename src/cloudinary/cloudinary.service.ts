@@ -19,40 +19,6 @@ export class CloudinaryService {
     type: string,
   ) {
     try {
-      const file_formats = [
-        'txt',
-        'doc',
-        'docx',
-        'pdf',
-        'xlsx',
-        'csv',
-        'xls',
-        'ppt',
-        'pptx',
-        'html',
-        'htm',
-        'css',
-        'js',
-        'md',
-        'markdown',
-        'log',
-        'xml',
-        'json',
-        'csv',
-        'sql',
-        'db',
-        'yml',
-        'yaml',
-        'json',
-        'jsonl',
-        'js',
-        'jsx',
-        'ts',
-        'tsx',
-        'html',
-        'css',
-        'txt',
-      ];
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { uploader, url } = v2;
 
@@ -61,11 +27,11 @@ export class CloudinaryService {
         const subFolder = this.subFolder;
         const uploadStream = uploader.upload_stream(
           {
+            // create a folder to store file
             public_id: `${folder}/${subFolder}/files/${type}/${file[0].originalname}~${id}`,
             resource_type: resourceType,
             //   raw_convert: 'aspose',
             discard_original_filename: false,
-            allowed_formats: file_formats,
             filename_override: file[0].originalname,
             //   notification_url: `http://${request}`,
           },
@@ -87,7 +53,7 @@ export class CloudinaryService {
             }
           },
         );
-
+        // upload
         uploadStream.end(file[0].buffer);
       });
     } catch (error) {
@@ -140,6 +106,7 @@ export class CloudinaryService {
           .upload_stream(
             {
               resource_type: 'image',
+              // create folder to store image
               public_id: `${this.folder}/${this.subFolder}/images/${type}/${id}`,
             },
             (error, result) => {

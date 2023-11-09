@@ -34,19 +34,23 @@ import { AppUtilities } from '../app.utilities';
 import { AdminJobListingFilterDto } from '@@/admin/dto/admin-job-listing.dto';
 import { AuthService } from '@@/auth/auth.service';
 import { UserJobListingDto } from '@@/user/dto/get-user-joblisting.dto';
+import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
 
 @Injectable()
 export class JobListingsService extends CrudService<
   Prisma.JobListingDelegate<Prisma.RejectOnNotFound>,
   JobListingMapType
 > {
+  private prismaClient;
   private readonly logger = new Logger(JobListingsService.name);
   constructor(
     private prisma: PrismaService,
     private cloudinaryService: CloudinaryService,
     private authService: AuthService,
+    private prismaClientManager: PrismaClientManager,
   ) {
     super(prisma.jobListing);
+    this.prismaClient = this.prismaClientManager.getPrismaClient();
   }
 
   async getJobListings({
@@ -141,7 +145,7 @@ export class JobListingsService extends CrudService<
   }
 
   async getJobListingById(id: string): Promise<JobListing> {
-    const jobListing = await this.prisma.jobListing.findFirst({
+    const jobListing = await this.prismaClient.jobListing.findFirst({
       where: { id, status: JOB_LISTING_STATUS.APPROVED },
       include: {
         jobApplications: {
@@ -168,7 +172,7 @@ export class JobListingsService extends CrudService<
 
   async createJobListing(dto: CreateJobListingDto, user: User) {
     try {
-      const foundUser = await this.prisma.user.findUnique({
+      const foundUser = await this.prismaClient.user.findUnique({
         where: { id: user.id },
       });
 
@@ -186,7 +190,7 @@ export class JobListingsService extends CrudService<
         ...rest
       } = dto;
 
-      const createJobListing = await this.prisma.jobListing.create({
+      const createJobListing = await this.prismaClient.jobListing.create({
         data: {
           title,
           jobResponsibilities,
@@ -225,7 +229,7 @@ export class JobListingsService extends CrudService<
       const { possibleStartDate } = applyDto;
       const { resume, coverLetter } = files;
 
-      const jobListing = await this.prisma.jobListing.findFirst({
+      const jobListing = await this.prismaClient.jobListing.findFirst({
         where: {
           id,
           status: JOB_LISTING_STATUS.APPROVED,
@@ -262,7 +266,7 @@ export class JobListingsService extends CrudService<
       this.logger.debug('Files saved to the cloud successfully');
 
       const findJobApplication =
-        await this.prisma.jobListingApplications.findFirst({
+        await this.prismaClient.jobListingApplications.findFirst({
           where: { userId: user.id, jobListingId: id },
         });
 
@@ -276,7 +280,7 @@ export class JobListingsService extends CrudService<
       };
 
       const jobApplication = !findJobApplication
-        ? await this.prisma.jobListingApplications.create({
+        ? await this.prismaClient.jobListingApplications.create({
             data: jobApplicationData,
             include: {
               user: {
@@ -285,7 +289,7 @@ export class JobListingsService extends CrudService<
               jobListing: true,
             },
           })
-        : await this.prisma.jobListingApplications.update({
+        : await this.prismaClient.jobListingApplications.update({
             where: { id: findJobApplication.id },
             data: jobApplicationData,
             include: {
@@ -307,56 +311,6 @@ export class JobListingsService extends CrudService<
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  // async downloadFiles(id: string): Promise<string> {
-  //   try {
-  //     const promises = [];
-  //     const jobListingApplication =
-  //       await this.prisma.jobListingApplications.findUnique({ where: { id } });
-
-  //     if (!jobListingApplication)
-  //       throw new NotFoundException(JOB_APPLICATION_ERORR.JOB_APPLICATION);
-
-  //     const resume = jobListingApplication.resume;
-  //     const coverLetter = jobListingApplication.coverLetter;
-
-  //     promises.push(this.cloudinaryService.downloadFile(resume));
-  //     promises.push(this.cloudinaryService.downloadFile(coverLetter));
-
-  //     Promise.all(promises);
-
-  //     return `...downloading ${resume} and ${coverLetter}`;
-  //   } catch (error) {
-  // console.log(error);
-  //     throw new BadRequestException(error.message);
-  //   }
-  // }
-
-  // async downloadFiles(id: string): Promise<any> {
-  //   try {
-  //     const jobListingApplication =
-  //       await this.prisma.jobListingApplications.findUnique({ where: { id } });
-
-  //     if (!jobListingApplication)
-  //       throw new NotFoundException(JOB_APPLICATION_ERORR.JOB_APPLICATION);
-
-  //     const resumeUrl = jobListingApplication.resume;
-  //     const coverLetterUrl = jobListingApplication.coverLetter;
-
-  //     const [resume, coverLetter]: any = await Promise.all([
-  //       await this.cloudinaryService.downloadFile(resumeUrl),
-  //       await this.cloudinaryService.downloadFile(coverLetterUrl),
-  //     ]);
-  //     return {
-  //       resume: resume.secure_url,
-  //       coverLetter: coverLetter.secure_url,
-  //     };
-  //   } catch (error) {
-  // console.log(error);
-  //     throw new BadRequestException(error.message);
-  //   }
-  // }
-
   async updateJobListing(
     id: string,
     dto: UpdateJobListingDto,
@@ -372,14 +326,14 @@ export class JobListingsService extends CrudService<
         ...rest
       } = dto;
 
-      const foundUser = await this.prisma.user.findUnique({
+      const foundUser = await this.prismaClient.user.findUnique({
         where: { id: user.id },
       });
 
       if (!foundUser)
         throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-      const jobListing = await this.prisma.jobListing.findUnique({
+      const jobListing = await this.prismaClient.jobListing.findUnique({
         where: { id },
       });
 
@@ -392,7 +346,7 @@ export class JobListingsService extends CrudService<
       if (foundUser.id !== jobListing.createdBy)
         throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-      const updateJobListing = await this.prisma.jobListing.update({
+      const updateJobListing = await this.prismaClient.jobListing.update({
         where: { id },
         data: {
           title,
@@ -414,7 +368,7 @@ export class JobListingsService extends CrudService<
   }
 
   async deleteJobListing(id: string, user: User): Promise<void> {
-    const foundUser = await this.prisma.user.findUnique({
+    const foundUser = await this.prismaClient.user.findUnique({
       where: { id: user.id },
     });
 
@@ -422,7 +376,7 @@ export class JobListingsService extends CrudService<
       throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
     }
 
-    const jobListing = await this.prisma.jobListing.findFirst({
+    const jobListing = await this.prismaClient.jobListing.findFirst({
       where: { id, createdBy: user.id },
     });
 
@@ -431,45 +385,47 @@ export class JobListingsService extends CrudService<
     }
 
     try {
-      await this.prisma.$transaction(async (prismaClient: PrismaClient) => {
-        const prismaDeletePromises = [];
+      await this.prismaClient.$transaction(
+        async (prismaClient: PrismaClient) => {
+          const prismaDeletePromises = [];
 
-        // Delete related data in a single transaction
-        prismaDeletePromises.push(
-          prismaClient.jobListingApplications.deleteMany({
-            where: { jobListingId: id },
-          }),
-          prismaClient.tags.deleteMany({
-            where: { jobListingId: id },
-          }),
-          prismaClient.bookmark.deleteMany({
-            where: { jobListingId: id },
-          }),
-        );
+          // Delete related data in a single transaction
+          prismaDeletePromises.push(
+            prismaClient.jobListingApplications.deleteMany({
+              where: { jobListingId: id },
+            }),
+            prismaClient.tags.deleteMany({
+              where: { jobListingId: id },
+            }),
+            prismaClient.bookmark.deleteMany({
+              where: { jobListingId: id },
+            }),
+          );
 
-        const jobListingApplications =
-          await prismaClient.jobListingApplications.findMany({
-            where: { jobListingId: id },
-          });
+          const jobListingApplications =
+            await prismaClient.jobListingApplications.findMany({
+              where: { jobListingId: id },
+            });
 
-        this.logger.debug('Deleting files from cloud...');
-        for (const jobListingApplication of jobListingApplications) {
-          await this.cloudinaryService.deleteFiles([
-            jobListingApplication.resume,
-            jobListingApplication.coverLetter,
-          ]);
-        }
-        this.logger.debug('Files deleted from cloud successfully');
+          this.logger.debug('Deleting files from cloud...');
+          for (const jobListingApplication of jobListingApplications) {
+            await this.cloudinaryService.deleteFiles([
+              jobListingApplication.resume,
+              jobListingApplication.coverLetter,
+            ]);
+          }
+          this.logger.debug('Files deleted from cloud successfully');
 
-        prismaDeletePromises.push(
-          prismaClient.jobListing.delete({
-            where: { id },
-          }),
-        );
+          prismaDeletePromises.push(
+            prismaClient.jobListing.delete({
+              where: { id },
+            }),
+          );
 
-        // Wait for all delete operations to complete
-        await Promise.all(prismaDeletePromises);
-      });
+          // Wait for all delete operations to complete
+          await Promise.all(prismaDeletePromises);
+        },
+      );
     } catch (error) {
       console.log(error);
       throw new BadRequestException(error.message);
@@ -480,7 +436,7 @@ export class JobListingsService extends CrudService<
     user: User,
   ): Promise<JobListing[]> {
     try {
-      const foundUser = await this.prisma.user.findUnique({
+      const foundUser = await this.prismaClient.user.findUnique({
         where: { id: user.id },
       });
 
@@ -569,7 +525,7 @@ export class JobListingsService extends CrudService<
   ): Promise<JobListing[]> {
     try {
       await this.authService.verifyUser(user);
-      const foundUser = await this.prisma.user.findUnique({
+      const foundUser = await this.prismaClient.user.findUnique({
         where: { id: user.id },
       });
 
@@ -579,6 +535,7 @@ export class JobListingsService extends CrudService<
       const parsedQueryFilters = this.parseQueryFilter(dto, [
         'title',
         'industry',
+        'companyName',
         {
           key: 'industry',
           where: (industry) => ({
@@ -651,7 +608,7 @@ export class JobListingsService extends CrudService<
       const jobListings = await this.findManyPaginate(args, {
         cursor,
         direction,
-        orderBy: orderBy || { status: direction },
+        orderBy: orderBy || { updatedAt: direction },
         size,
       });
 

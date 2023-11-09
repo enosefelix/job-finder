@@ -9,6 +9,7 @@ import { MailerService } from '@@/mailer/mailer.service';
 import { CacheService } from '@@/common/cache/cache.service';
 import { PassportModule } from '@nestjs/passport';
 import { GoogleStrategy } from '@@/auth/google.strategy';
+import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
 
 @Module({
   imports: [PassportModule.register({ defaultStrategy: 'jwt' })],
@@ -21,6 +22,7 @@ import { GoogleStrategy } from '@@/auth/google.strategy';
     GoogleStrategy,
     JwtService,
     MailerService,
+    PrismaClientManager,
     CacheService,
   ],
 })

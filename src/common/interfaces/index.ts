@@ -1,6 +1,10 @@
 import { JwtPayload } from '@@/auth/payload/jwt.payload.interface';
 import { Request } from 'express';
 
+export interface RequestWithUser extends Request {
+  user: JwtPayload;
+}
+
 export enum USER_STATUS {
   ACTIVE = 'Active',
   INACTIVE = 'Inactive',
@@ -81,6 +85,12 @@ export enum ResourceType {
 }
 
 export enum JOB_LISTING_STATUS {
+  PENDING = 'Pending',
+  APPROVED = 'Approved',
+  REJECTED = 'Rejected',
+}
+
+export enum BLOG_STATUS {
   PENDING = 'Pending',
   APPROVED = 'Approved',
   REJECTED = 'Rejected',
