@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "build-commands": "npm install && yarn db.migration.run && yarn db.generate && yarn db.seed",
+    "build-commands": "npm install && yarn db.generate && yarn db.seed",
     "build-prod": "ts-node ./src/common/prisma/script-runner.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
