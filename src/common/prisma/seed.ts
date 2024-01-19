@@ -2,11 +2,13 @@
 import { PrismaClient } from '@prisma/client';
 import { roleSeed } from '../prisma/role.seed';
 import { ROLE_TYPE } from '../interfaces';
-import * as moment from 'moment';
-import { job_listingSeed } from './jobs-seed-data.seed';
+import moment from 'moment';
+import { job_listingSeed } from '../database/seed-data/jobs-seed-data.seed';
 import { AppUtilities } from '../../app.utilities';
-import { blogSeed } from './blog-seed-data.seed';
+import { blogSeed } from '../database/seed-data/blog-seed-data.seed';
 import { Logger } from '@nestjs/common';
+import { MessageTemplateSeed } from '../database/seed-data/message-template.seed';
+import { MailImageSeed } from '../database/seed-data/message-file.seed';
 
 async function seedDatabase() {
   const prisma = new PrismaClient();
@@ -36,6 +38,22 @@ async function seedDatabase() {
     const role = await prisma.role.findFirst({
       where: { code: ROLE_TYPE.ADMIN },
     });
+
+    // Seed Message Templates
+    promises.push(
+      prisma.messageTemplate.createMany({
+        data: MessageTemplateSeed,
+        skipDuplicates: true,
+      }),
+    );
+
+    // Seed Message Image
+    promises.push(
+      prisma.mailImage.createMany({
+        data: MailImageSeed,
+        skipDuplicates: true,
+      }),
+    );
 
     // Seed job-listings
     logger.debug('Seeding job listings...');

@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "build-commands": "npm install && yarn db.generate && yarn db.seed",
+    "build-commands": "npm install && yarn db.migration.run && yarn db.generate && yarn db.seed",
     "build-prod": "ts-node ./src/common/prisma/script-runner.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
@@ -27,9 +27,10 @@
     "db.seed": "ts-node src/common/prisma/seed.ts"
   },
   "dependencies": {
-    "@faker-js/faker": "^8.1.0",
+    "@faker-js/faker": "^7.4.0",
     "@nestjs-modules/mailer": "^1.8.1",
     "@nestjs/axios": "^3.0.0",
+    "@nestjs/bull": "^10.0.1",
     "@nestjs/cache-manager": "^2.1.0",
     "@nestjs/common": "^9.0.0",
     "@nestjs/config": "^2.3.2",
@@ -41,7 +42,7 @@
     "@nestjs/schedule": "^3.0.0",
     "@nestjs/serve-static": "^4.0.0",
     "@nestjs/swagger": "^6.3.0",
-    "@nestjs/throttler": "^5.0.0",
+    "@nestjs/throttler": "^5.0.1",
     "@prisma/client": "^4.15.0",
     "@sendgrid/mail": "^7.7.0",
     "@types/bcrypt": "^5.0.0",
@@ -51,6 +52,7 @@
     "axios": "^1.4.0",
     "bcrypt": "^5.0.0",
     "buffer-to-stream": "^1.0.0",
+    "bull": "^4.11.5",
     "cache-manager": "^4.1.0",
     "cache-manager-redis-store": "^2.0.0",
     "class-transformer": "^0.5.1",
@@ -104,8 +106,7 @@
     "supertest": "^6.1.3",
     "ts-jest": "29.0.5",
     "ts-loader": "^9.2.3",
-    "tsconfig-paths": "4.2.0",
-    "typescript": "^5.1.3"
+    "tsconfig-paths": "4.2.0"
   },
   "jest": {
     "moduleFileExtensions": [

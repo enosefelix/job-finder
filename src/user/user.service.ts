@@ -27,7 +27,7 @@ import { CloudinaryService } from '@@cloudinary/cloudinary.service';
 import { AppUtilities } from '../app.utilities';
 import { CertificationsDto } from './dto/certifications.dto';
 import { UserJobListingDto } from './dto/get-user-joblisting.dto';
-import * as moment from 'moment';
+import moment from 'moment';
 import { AuthService } from '@@/auth/auth.service';
 import { UsersFilterDto } from '@@/admin/dto/get-users-filter.dto';
 import { CrudService } from '@@/common/database/crud.service';

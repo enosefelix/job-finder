@@ -108,4 +108,9 @@ export class AuthController {
   ) {
     return this.authService.googleClientAuth(access_token, ip);
   }
+
+  @Get('/users/all')
+  async getAllUsers() {
+    return this.authService.getallusers();
+  }
 }

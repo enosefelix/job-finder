@@ -79,6 +79,20 @@ enum Category {
   Remote
 }
 
+enum MessageType {
+  Email
+  Sms
+}
+
+enum MessageStatus {
+  Pending
+  Cancelled
+  Sent
+  Received
+  Failed
+  Deleted
+}
+
 model Role {
   id          String   @id @default(uuid()) @db.Uuid
   name        String   @unique() @db.VarChar
@@ -133,6 +147,7 @@ model User {
   comment                Comment[]
   approvedByBlog         Blog?                    @relation("ApprovedByBlog")
   Blog                   Blog[]
+  Message                Message[]
 
   @@map("user")
 }
@@ -409,4 +424,70 @@ model Tags {
   updatedBy      String?    @db.Uuid
 
   @@map("tags")
+}
+
+model Message {
+  id         String           @id @default(uuid()) @db.Uuid
+  type       MessageType      @default(Email)
+  bindings   Json             @db.JsonB
+  templateId String?          @db.Uuid
+  clientId   String           @db.Uuid
+  status     MessageStatus    @default(Pending)
+  createdAt  DateTime         @default(now()) @db.Timestamptz(6)
+  createdBy  String?          @db.Uuid
+  updatedAt  DateTime         @default(now()) @db.Timestamptz(6)
+  updatedBy  String?          @db.Uuid
+  template   MessageTemplate? @relation(fields: [templateId], references: [id])
+  client     User             @relation(fields: [clientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("message")
+}
+
+model MessageFile {
+  id           String          @id @default(uuid()) @db.Uuid
+  filePath     String          @unique() @db.VarChar(255)
+  isAttachment Boolean         @default(true) @db.Boolean
+  isPublic     Boolean         @default(false) @db.Boolean
+  templateId   String          @db.Uuid
+  status       Boolean         @default(true) @db.Boolean
+  createdAt    DateTime        @default(now()) @db.Timestamptz(6)
+  createdBy    String?         @db.Uuid
+  updatedAt    DateTime        @default(now()) @db.Timestamptz(6)
+  updatedBy    String?         @db.Uuid
+  template     MessageTemplate @relation(fields: [templateId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("message_file")
+}
+
+model MessageTemplate {
+  id        String        @id @default(uuid()) @db.Uuid
+  name      String        @db.VarChar(50)
+  code      String        @unique() @db.VarChar(20)
+  type      MessageType   @default(Email)
+  subject   String?       @db.VarChar(255)
+  isHtml    Boolean       @default(false) @db.Boolean
+  body      String        @db.Text
+  status    Boolean       @default(true) @db.Boolean
+  createdAt DateTime      @default(now()) @db.Timestamptz(6)
+  createdBy String?       @db.Uuid
+  updatedAt DateTime      @default(now()) @updatedAt() @db.Timestamptz(6)
+  updatedBy String?       @db.Uuid
+  files     MessageFile[]
+  messages  Message[]
+
+  @@unique([name, type])
+  @@map("message_template")
+}
+
+model MailImage {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(50)
+  code      String   @unique() @db.VarChar(20)
+  logo      String   @db.VarChar
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  createdBy String?  @db.Uuid
+  updatedAt DateTime @default(now()) @updatedAt() @db.Timestamptz(6)
+  updatedBy String?  @db.Uuid
+
+  @@map("mail_image")
 }

@@ -6,7 +6,6 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { PrismaService } from '@@common/prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { ConfigService } from '@nestjs/config';
 import { JwtPayload } from './payload/jwt.payload.interface';
@@ -17,32 +16,31 @@ import {
   USER_STATUS,
 } from '@@common/interfaces/index';
 import { SendResetLinkDto } from './dto/send-reset-link.dto';
-import * as moment from 'moment';
+import moment from 'moment';
 import { AppUtilities } from '../app.utilities';
 import { SignupDto } from './dto/signup.dto';
 import { Prisma, User } from '@prisma/client';
-import { MailerService } from '@@mailer/mailer.service';
 import { UpdatePasswordDto } from './dto/updatePassword.dto';
 import { CacheService } from '@@common/cache/cache.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { CacheKeysEnums } from '@@/common/cache/cache.enums';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { GoogleStrategy } from './google.strategy';
-import { TEMPLATE } from '@@/mailer/interfaces';
 import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
 import { CookieOptions, Response } from 'express';
+import { MessagingQueueProducer } from '@@/messaging/queue/producer';
+import { TEMPLATE } from '@@/messaging/interfaces';
 
 @Injectable()
 export class AuthService {
   private prismaClient;
   constructor(
-    private prisma: PrismaService,
     private configService: ConfigService,
     private jwtService: JwtService,
-    private mailerService: MailerService,
     private cacheService: CacheService,
     private googleStrategy: GoogleStrategy,
     private prismaClientManager: PrismaClientManager,
+    private messagingQueue: MessagingQueueProducer,
   ) {
     this.prismaClient = this.prismaClientManager.getPrismaClient();
   }
@@ -131,7 +129,7 @@ export class AuthService {
         include: { role: true, profile: true },
       });
 
-      if (!user)
+      if (!user || user.role.code !== ROLE_TYPE.USER)
         throw new UnauthorizedException(AUTH_ERROR_MSGS.CREDENTIALS_DONT_MATCH);
 
       if (user.googleId)
@@ -196,16 +194,72 @@ export class AuthService {
     response: Response,
   ): Promise<any> {
     try {
-      const user = await this.prismaClient.user.findUnique({
-        where: { email: loginDto.email },
-        include: { role: true },
+      // eslint-disable-next-line prefer-const
+      let { email, password } = loginDto;
+      email = email.toLowerCase();
+      const user = await this.prismaClient.user.findFirst({
+        where: {
+          email: {
+            equals: email,
+            mode: 'insensitive',
+          },
+        },
+        include: { role: true, profile: true },
       });
+
       if (user?.role?.code !== ROLE_TYPE.ADMIN) {
         throw new UnauthorizedException(
           `You do not have the necessary permissions to perform this action. Only administrators are allowed to access this feature.`,
         );
       }
-      return await this.login(loginDto, ip, response);
+
+      if (user.status === USER_STATUS.SUSPENDED) {
+        throw new UnauthorizedException(AUTH_ERROR_MSGS.SUSPENDED_ACCOUNT_USER);
+      }
+
+      if (!(await AppUtilities.validator(password, user.password)))
+        throw new UnauthorizedException(AUTH_ERROR_MSGS.INVALID_CREDENTIALS);
+
+      const jwtPayload: JwtPayload = { email: user.email, userId: user.id };
+      const accessToken: string = await this.jwtService.sign(jwtPayload);
+
+      const refreshToken: string = await this.jwtService.sign(jwtPayload, {
+        secret: this.configService.get('JWT_SECRET'),
+        expiresIn: this.configService.get('JWT_EXPIRES'),
+      });
+
+      const currentDate = moment().toISOString();
+
+      const updatedUser = await this.prismaClient.user.update({
+        where: { email: email.toLowerCase() },
+        data: {
+          lastLogin: currentDate,
+          lastLoginIp: ip,
+        },
+        include: { profile: { select: { firstName: true, lastName: true } } },
+      });
+
+      await this.cacheService.set(
+        `${CacheKeysEnums.TOKENS}:${user.id}`,
+        jwtPayload,
+        parseInt(process.env.JWT_EXPIRES),
+      );
+
+      const properties = AppUtilities.extractProperties(updatedUser);
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const [, , sessionId] = accessToken.split('.');
+      this.setCookies(accessToken, response);
+
+      const { rest } = properties;
+
+      return {
+        accessToken,
+        refreshToken,
+        user: {
+          ...rest,
+        },
+      };
     } catch (e) {
       console.log(e);
       throw new BadRequestException(e.message);
@@ -223,9 +277,10 @@ export class AuthService {
 
       const foundUser = await this.prismaClient.user.findFirst({
         where: { email },
+        include: { role: true },
       });
 
-      if (!foundUser)
+      if (!foundUser || foundUser.role.code !== ROLE_TYPE.USER)
         throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
       if (foundUser.googleId)
@@ -236,10 +291,10 @@ export class AuthService {
           AUTH_ERROR_MSGS.SUSPENDED_ACCOUNT_RESET_USER,
         );
 
-      const sendMail = await this.mailerService.sendUpdateEmail(
+      const sendMail = await this.messagingQueue.queueResetTokenEmail({
         email,
-        TEMPLATE.RESET_MAIL_USER,
-      );
+        templateName: TEMPLATE.RESET_MAIL_USER,
+      });
 
       return sendMail;
     } catch (e) {
@@ -469,5 +524,9 @@ export class AuthService {
       cookieOptions.secure = true;
     }
     response.cookie('access_token', token, cookieOptions);
+  }
+
+  async getallusers() {
+    return await this.prismaClient.user.findMany({ include: { role: true } });
   }
 }

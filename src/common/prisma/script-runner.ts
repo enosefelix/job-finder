@@ -3,7 +3,7 @@ import * as readline from 'readline';
 import { PrismaClient } from '@prisma/client';
 import { roleSeed } from '../prisma/role.seed';
 import { ROLE_TYPE } from '../interfaces';
-import * as moment from 'moment';
+import moment from 'moment';
 import { AppUtilities } from '../../app.utilities';
 
 const scripts = [

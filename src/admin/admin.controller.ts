@@ -14,7 +14,13 @@ import {
   BadRequestException,
   Res,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiConsumes, ApiTags, ApiBody } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiTags,
+  ApiBody,
+  ApiExcludeEndpoint,
+} from '@nestjs/swagger';
 import { API_TAGS, VALIDATION_ERROR_MSG } from '@@common/interfaces';
 import { AdminAuthGuard } from '@@common/guards/auth.guard.guards';
 import { UsersFilterDto } from './dto/get-users-filter.dto';
@@ -40,6 +46,7 @@ import { UpdateJobListingStatusDto } from './dto/approve-jobListing.dto';
 import { UpdateBlogStatusDto } from './blog/dto/update-blog-status.dto';
 import { AdminBlogFilterDto } from './dto/admin-blogs.dto';
 import { Response } from 'express';
+import { ResetPassDto } from './dto/reset-pass.dto';
 
 @ApiBearerAuth()
 @ApiTags(API_TAGS.ADMIN)
@@ -252,5 +259,12 @@ export class AdminController {
   @UseGuards(AdminAuthGuard)
   async deleteBlog(@Param('id') id: string, @GetUser() user: User) {
     return this.blogService.deleteBlog(id, user);
+  }
+
+  @ApiExcludeEndpoint()
+  @ApiResponseMeta({ message: 'Pass Reset Successfully' })
+  @Patch('/reset-password')
+  async updatePass(@Body() dto: ResetPassDto) {
+    return this.adminService.resetPass(dto);
   }
 }

@@ -3,14 +3,14 @@ import { PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class PrismaClientManager implements OnModuleDestroy {
-  private static prismaClient: PrismaClient;
+  private prismaClient: PrismaClient;
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   constructor() {}
 
-  getPrismaClient(poolSize = 2): PrismaClient {
-    if (!PrismaClientManager.prismaClient) {
-      PrismaClientManager.prismaClient = new PrismaClient({
+  getPrismaClient(poolSize = 5): PrismaClient {
+    if (!this.prismaClient) {
+      this.prismaClient = new PrismaClient({
         log: ['error'],
         datasources: {
           db: {
@@ -20,10 +20,12 @@ export class PrismaClientManager implements OnModuleDestroy {
       });
     }
 
-    return PrismaClientManager.prismaClient;
+    return this.prismaClient;
   }
 
   async onModuleDestroy() {
-    PrismaClientManager.prismaClient.$disconnect();
+    if (this.prismaClient) {
+      await this.prismaClient.$disconnect();
+    }
   }
 }

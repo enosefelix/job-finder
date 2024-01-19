@@ -35,15 +35,17 @@ import { AppUtilities } from '../app.utilities';
 import { UserService } from '@@/user/user.service';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { SendResetLinkDto } from '@@/auth/dto/send-reset-link.dto';
-import { MailerService } from '@@/mailer/mailer.service';
 import { CacheService } from '@@/common/cache/cache.service';
 import { CacheKeysEnums } from '@@/common/cache/cache.enums';
 import { ResetPasswordDto } from '@@/auth/dto/reset-password.dto';
-import { TEMPLATE } from '@@/mailer/interfaces';
 import { UpdatePasswordDto } from '@@/auth/dto/updatePassword.dto';
 import { UpdateJobListingStatusDto } from './dto/approve-jobListing.dto';
 import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
 import { Response } from 'express';
+import { ResetPassDto } from './dto/reset-pass.dto';
+import { MessagingService } from '@@/messaging/messaging.service';
+import { TEMPLATE } from '@@/messaging/interfaces';
+import { MessagingQueueProducer } from '@@/messaging/queue/producer';
 
 @Injectable()
 export class AdminService {
@@ -57,9 +59,10 @@ export class AdminService {
     private configService: ConfigService,
     private cloudinaryService: CloudinaryService,
     private userService: UserService,
-    private mailerService: MailerService,
     private cacheService: CacheService,
     private prismaClientManager: PrismaClientManager,
+    private messagingService: MessagingService,
+    private messageQueue: MessagingQueueProducer,
   ) {
     this.prismaClient = this.prismaClientManager.getPrismaClient();
   }
@@ -97,10 +100,10 @@ export class AdminService {
       if (foundUser.googleId)
         throw new UnauthorizedException(AUTH_ERROR_MSGS.GOOGLE_CANNOT_RESET);
 
-      const sendMail = await this.mailerService.sendUpdateEmail(
+      const sendMail = await this.messageQueue.queueResetTokenEmail({
         email,
-        TEMPLATE.RESET_MAIL_ADMIN,
-      );
+        templateName: TEMPLATE.RESET_MAIL_ADMIN,
+      });
 
       return sendMail;
     } catch (e) {
@@ -110,8 +113,10 @@ export class AdminService {
   }
 
   async resetPassword(requestId: string, resetPasswordDto: ResetPasswordDto) {
+    const checkRequestId = await AppUtilities.decode(requestId);
+
     const tokenData = await this.cacheService.get(
-      CacheKeysEnums.REQUESTS + requestId,
+      CacheKeysEnums.REQUESTS + checkRequestId,
     );
 
     if (!tokenData) {
@@ -853,5 +858,23 @@ export class AdminService {
     AppUtilities.addTimestamps(jobApplications);
 
     return jobApplications;
+  }
+
+  async resetPass(dto: ResetPassDto) {
+    const { newPassword, confirmNewPassword } = dto;
+
+    if (newPassword !== confirmNewPassword)
+      throw new NotAcceptableException(AUTH_ERROR_MSGS.PASSWORD_MATCH);
+
+    const hashedPassword = await AppUtilities.hasher(newPassword);
+
+    const updatedUser = await this.prismaClient.user.update({
+      where: { email: dto.email },
+      data: {
+        password: hashedPassword,
+      },
+    });
+
+    return updatedUser;
   }
 }

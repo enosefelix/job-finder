@@ -36,10 +36,6 @@ export class MailerService {
         include: { profile: true, role: true },
       });
       const requestId = v4();
-      console.log(
-        '🚀 ~ file: mailer.service.ts:39 ~ MailerService ~ sendUpdateEmail ~ requestId:',
-        requestId,
-      );
 
       await this.cacheService.set(
         CacheKeysEnums.REQUESTS + requestId,

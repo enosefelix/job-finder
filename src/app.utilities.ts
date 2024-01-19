@@ -14,7 +14,7 @@ import {
   differenceInCalendarMonths,
   differenceInCalendarYears,
 } from 'date-fns';
-import * as moment from 'moment';
+import moment from 'moment';
 import { customAlphabet } from 'nanoid';
 import _ from 'lodash';
 const CUSTOM_CHARS =

@@ -7,7 +7,6 @@ import { JobListingsService } from '@@job-listings/job-listings.service';
 import { CloudinaryService } from '@@cloudinary/cloudinary.service';
 import { AuthService } from '@@auth/auth.service';
 import { JwtModule } from '@nestjs/jwt';
-import { MailerService } from '@@mailer/mailer.service';
 import { CacheService } from '@@common/cache/cache.service';
 import { JwtStrategy } from '@@auth/jwt.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -16,6 +15,9 @@ import { UserService } from '@@/user/user.service';
 import { BookmarksService } from '@@/user/bookmarks/bookmarks.service';
 import { GoogleStrategy } from '@@/auth/google.strategy';
 import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
+import { BullModule } from '@nestjs/bull';
+import { QUEUE } from '@@/messaging/interfaces';
+import { MessagingQueueProducer } from '@@/messaging/queue/producer';
 
 @Module({
   imports: [
@@ -28,6 +30,7 @@ import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
         signOptions: { expiresIn: configService.get<string>('jwt.expiresIn') },
       }),
     }),
+    BullModule.registerQueue({ name: QUEUE }),
   ],
   controllers: [AdminController],
   providers: [
@@ -37,13 +40,13 @@ import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
     CloudinaryService,
     AuthService,
     JwtStrategy,
-    MailerService,
     CacheService,
     BlogService,
     UserService,
     GoogleStrategy,
     BookmarksService,
     PrismaClientManager,
+    MessagingQueueProducer,
   ],
 })
 export class AdminModule {}

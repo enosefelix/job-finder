@@ -6,10 +6,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
-import { MailerService } from '@@mailer/mailer.service';
 import { GoogleStrategy } from './google.strategy';
 import { CacheService } from '@@common/cache/cache.service';
 import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
+import { BullModule } from '@nestjs/bull';
+import { QUEUE } from '@@/messaging/interfaces';
+import { MessagingQueueConsumer } from '@@/messaging/queue/consumer';
+import { MessagingQueueProducer } from '@@/messaging/queue/producer';
 
 @Module({
   imports: [
@@ -22,6 +25,7 @@ import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
         signOptions: { expiresIn: configService.get<string>('jwt.expiresIn') },
       }),
     }),
+    BullModule.registerQueue({ name: QUEUE }),
   ],
   controllers: [AuthController],
   providers: [
@@ -30,10 +34,11 @@ import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
     PrismaService,
     ConfigService,
     JwtStrategy,
-    MailerService,
     GoogleStrategy,
     CacheService,
+    MessagingQueueConsumer,
+    MessagingQueueProducer,
   ],
-  exports: [AuthService],
+  exports: [AuthService, MessagingQueueConsumer, MessagingQueueProducer],
 })
 export class AuthModule {}

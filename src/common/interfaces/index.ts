@@ -146,3 +146,18 @@ export interface RequestWithUser extends Request {
   permittedFields?: any;
   selectFields?: any;
 }
+
+export enum MessageStatus {
+  Pending = 'Pending',
+  Cancelled = 'Cancelled',
+  Sent = 'Sent',
+  Received = 'Received',
+  Failed = 'Failed',
+  Deleted = 'Deleted',
+}
+
+export enum MessageType {
+  Email = 'Email',
+  Sms = 'Sms',
+  Chat = 'Chat',
+}

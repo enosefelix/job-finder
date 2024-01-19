@@ -60,6 +60,24 @@ const config = {
       )
       .replace(/\//g, ''),
   },
+  smtp: {
+    transport: {
+      host: env.require('MAIL_HOST'),
+      port: Number(env('MAIL_PORT', 587)),
+      secure: env.require('MAIL_SECURITY') === 'true',
+      auth: {
+        user: env('MAIL_USER'),
+        pass: env('MAIL_PASSWORD'),
+      },
+    },
+    defaults: {
+      // from: '"IWIA" <no-reply@mailer.com>',
+      from: {
+        name: 'IWIA',
+        address: 'no-reply@mailer.com',
+      },
+    },
+  },
 };
 
 export default () => config;

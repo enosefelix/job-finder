@@ -6,11 +6,14 @@ import { AuthService } from '@@/auth/auth.service';
 import { JwtService } from '@nestjs/jwt';
 import { JwtStrategy } from '@@/auth/jwt.strategy';
 import { CacheService } from '@@/common/cache/cache.service';
-import { MailerService } from '@@/mailer/mailer.service';
 import { CloudinaryService } from '@@/cloudinary/cloudinary.service';
 import { GoogleStrategy } from '@@/auth/google.strategy';
 import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
+import { MessagingQueueProducer } from '@@/messaging/queue/producer';
+import { BullModule } from '@nestjs/bull';
+import { QUEUE } from '@@/messaging/interfaces';
 @Module({
+  imports: [BullModule.registerQueue({ name: QUEUE })],
   controllers: [BlogController],
   providers: [
     BlogService,
@@ -18,11 +21,11 @@ import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
     AuthService,
     JwtService,
     JwtStrategy,
-    MailerService,
     GoogleStrategy,
     CacheService,
     CloudinaryService,
     PrismaClientManager,
+    MessagingQueueProducer,
   ],
 })
 export class BlogModule {}
