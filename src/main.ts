@@ -89,6 +89,8 @@ async function bootstrap() {
   //   credentials: true,
   // });
 
+  console.log('🚀 ~ bootstrap ~ dev appPort:', appPort);
+  console.log('🚀 ~ bootstrap ~ dev appHost:', appHost);
   await app.listen(appPort, appHostname);
 }
 

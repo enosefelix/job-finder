@@ -19,12 +19,9 @@ const config = {
   environment: env.require('NODE_ENV', 'production'),
   app: {
     name: 'job-finder-be',
-    port: parseInt(env('APP_PORT', 3001)),
-    hostname: env('APP_HOSTNAME', 'localhost'),
-    host: env(
-      'APP_HOST',
-      `http://localhost:${parseInt(env('APP_PORT', 3001))}`,
-    ),
+    port: parseInt(env('APP_PORT', 3000)),
+    hostname: env('APP_HOSTNAME'),
+    host: env('APP_HOST'), // change this to the server your stuff is listening on
     api: {
       version: env('APP_API_VERSION', 'api/v3'),
     },

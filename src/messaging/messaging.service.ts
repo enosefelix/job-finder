@@ -85,6 +85,7 @@ export class MessagingService {
     const resetUrlAdmin = new URL(
       `${process.env.FRONTEND_URL_ADMIN}/pages/auth/reset-password/${requestId}`,
     );
+
     const imagePath =
       'aHR0cHM6Ly9yZXMuY2xvdWRpbmFyeS5jb20vZGpta3l4eGJjL2ltYWdlL3VwbG9hZC92MTY5NzYxNDYzOC9kZXZlbG9wbWVudC9odHRwczp3aGFsZS1hcHAtd3E3aGMub25kaWdpdGFsb2NlYW4uYXBwL2ltYWdlcy9tYWlsLWltYWdlcy9pLVdvcmstaW4tQWZyaWthX3Z5MXM4ei5wbmc=';
 
@@ -92,10 +93,10 @@ export class MessagingService {
       .useTemplate(emailTemplate, {
         fullName,
         email,
-        login:
+        resetUrl:
           templateName === TEMPLATE.RESET_MAIL_ADMIN
-            ? { url: resetUrlAdmin }
-            : { url: resetUrlUser },
+            ? resetUrlAdmin
+            : resetUrlUser,
         imagePath: AppUtilities.decode(imagePath),
       })
       .addRecipients([email]);
