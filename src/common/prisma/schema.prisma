@@ -478,16 +478,3 @@ model MessageTemplate {
   @@unique([name, type])
   @@map("message_template")
 }
-
-model MailImage {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String   @db.VarChar(50)
-  code      String   @unique() @db.VarChar(20)
-  logo      String   @db.VarChar
-  createdAt DateTime @default(now()) @db.Timestamptz(6)
-  createdBy String?  @db.Uuid
-  updatedAt DateTime @default(now()) @updatedAt() @db.Timestamptz(6)
-  updatedBy String?  @db.Uuid
-
-  @@map("mail_image")
-}

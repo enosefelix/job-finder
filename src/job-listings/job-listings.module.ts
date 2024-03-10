@@ -5,19 +5,14 @@ import { PrismaService } from '@@common/prisma/prisma.service';
 import { CloudinaryService } from '@@cloudinary/cloudinary.service';
 import { AuthService } from '@@/auth/auth.service';
 import { JwtService } from '@nestjs/jwt';
+import { MailerService } from '@@/mailer/mailer.service';
 import { CacheService } from '@@/common/cache/cache.service';
 import { PassportModule } from '@nestjs/passport';
 import { GoogleStrategy } from '@@/auth/google.strategy';
 import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
-import { MessagingQueueProducer } from '@@/messaging/queue/producer';
-import { BullModule } from '@nestjs/bull';
-import { QUEUE } from '@@/messaging/interfaces';
 
 @Module({
-  imports: [
-    PassportModule.register({ defaultStrategy: 'jwt' }),
-    BullModule.registerQueue({ name: QUEUE }),
-  ],
+  imports: [PassportModule.register({ defaultStrategy: 'jwt' })],
   controllers: [JobListingsController],
   providers: [
     AuthService,
@@ -26,9 +21,9 @@ import { QUEUE } from '@@/messaging/interfaces';
     CloudinaryService,
     GoogleStrategy,
     JwtService,
+    MailerService,
     PrismaClientManager,
     CacheService,
-    MessagingQueueProducer,
   ],
 })
 export class JobListingsModule {}

@@ -19,5 +19,5 @@ faker.seed(11224);
 
 export const roleSeed = roles.map((role) => ({
   ...role,
-  id: faker.datatype.uuid(),
+  id: faker.string.uuid(),
 }));

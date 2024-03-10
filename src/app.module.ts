@@ -6,6 +6,7 @@ import { JwtStrategy } from './auth/jwt.strategy';
 import { JwtService } from '@nestjs/jwt';
 import { JobListingsModule } from './job-listings/job-listings.module';
 import { AdminModule } from './admin/admin.module';
+import { MailerModule } from './mailer/mailer.module';
 import { MailerModule as NestMailerModule } from '@nestjs-modules/mailer';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { Module } from '@nestjs/common';
@@ -14,6 +15,7 @@ import { CacheModule as NestCacheModule } from '@nestjs/cache-manager';
 import { CacheService } from './common/cache/cache.service';
 import * as redisStore from 'cache-manager-redis-store';
 import { HealthController } from './health-check.controller';
+import { MailerService } from './mailer/mailer.service';
 import { UserModule } from './user/user.module';
 import { ProfileModule } from './user/profile/profile.module';
 import { PassportModule } from '@nestjs/passport';
@@ -22,9 +24,11 @@ import { BlogModule } from './admin/blog/blog.module';
 import { JobListingApplicationsModule } from './job-listing-applications/job-listing-applications.module';
 import { BookmarksModule } from './user/bookmarks/bookmarks.module';
 import { GoogleStrategy } from './auth/google.strategy';
+import { join } from 'path';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { ConvertModule } from './convert/convert.module';
 import { DatabaseModule } from './common/database/database.module';
 import { MessagingModule } from './messaging/messaging.module';
-import { BullModule } from '@nestjs/bull';
 
 @Module({
   imports: [
@@ -37,40 +41,23 @@ import { BullModule } from '@nestjs/bull';
         limit: 10,
       },
     ]),
-    BullModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        prefix: `${config.get('environment')}:${config.get('app.name')}`,
-        redis: {
-          host: config.get('redis.host'),
-          port: config.get('redis.port'),
-        },
-      }),
-    }),
     JobListingsModule,
     BlogModule,
     AdminModule,
+    MailerModule,
     CloudinaryModule,
     NestCacheModule.registerAsync({
       isGlobal: true,
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
-        const redisHost = configService.get<string>('REDIS_HOST');
-        const redisPort = configService.get<string>('REDIS_PORT');
-        const redisUsername = configService.get<string>('REDIS_USERNAME');
-        const redisPassword = configService.get<string>('REDIS_PASSWORD');
-
-        console.log('🚀 ~ Redis host:', redisHost);
-        console.log('🚀 ~ Redis port:', redisPort);
-        console.log('🚀 ~ Redis username:', redisUsername);
-        console.log('🚀 ~ Redis password:', redisPassword);
-
+        const redisPassword = configService.get<string>('redis.password');
+        const host = configService.get<string>('redis.host');
+        const port = configService.get<string>('redis.port');
         return {
           isGlobal: true,
           store: redisStore,
-          host: redisHost,
-          port: redisPort,
-          username: redisUsername,
+          host: host,
+          port: port,
           password: redisPassword,
         };
       },
@@ -102,6 +89,10 @@ import { BullModule } from '@nestjs/bull';
     PassportModule.register({ isGlobal: true, defaultStrategy: 'jwt' }),
     JobListingApplicationsModule,
     BookmarksModule,
+    ServeStaticModule.forRoot({
+      rootPath: join('src/mailer/public/images'),
+    }),
+    ConvertModule,
     MessagingModule,
   ],
   controllers: [HealthController],
@@ -110,6 +101,7 @@ import { BullModule } from '@nestjs/bull';
     JwtService,
     JwtStrategy,
     CacheService,
+    MailerService,
     GoogleStrategy,
     {
       provide: 'APP_GUARD',

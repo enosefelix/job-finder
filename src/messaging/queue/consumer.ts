@@ -16,6 +16,6 @@ export class MessagingQueueConsumer extends QueueProcessor {
 
   @Process({ name: JOBS.QUEUE_RESET_TOKEN_EMAIL })
   async queueResetTokenEmail({ data }: Job<ISendEmail>) {
-    await this.mailingService.sendUpdateEmail(data);
+    await this.mailingService.sendUpdateEmail(data.email, data.templateName);
   }
 }

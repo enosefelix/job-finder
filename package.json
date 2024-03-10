@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "npm install && npm install bull @nestjs/bull && yarn db.generate && nest build",
+    "build": "npm install && yarn db.generate && nest build",
     "build-commands": "npm install && yarn db.migration.run && yarn db.generate && yarn db.seed",
     "build-prod": "ts-node ./src/common/prisma/script-runner.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",

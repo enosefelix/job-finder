@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EmailBuilder } from './builder/email-builder';
-import { MailProviders, TEMPLATE } from './interfaces';
+import { MailProviders } from './interfaces';
 import { MailService } from './messaging-mail.service';
 import { PrismaClient } from '@prisma/client';
 import { MessageStatus, MessageType } from '@@common/interfaces';
@@ -9,6 +9,7 @@ import moment from 'moment';
 import { CacheService } from '@@/common/cache/cache.service';
 import { CacheKeysEnums } from '@@/common/cache/cache.enums';
 import { v4 } from 'uuid';
+import { TEMPLATE } from '@@/mailer/interfaces';
 import { AppUtilities } from '@@/app.utilities';
 
 @Injectable()
@@ -39,10 +40,7 @@ export class MessagingService {
     };
   }
 
-  public async sendUpdateEmail({
-    email,
-    templateName = TEMPLATE.RESET_MAIL_ADMIN,
-  }) {
+  public async sendUpdateEmail(email: string, templateName: TEMPLATE) {
     // get message template from db
     const prismaClient = new PrismaClient();
 
@@ -80,33 +78,25 @@ export class MessagingService {
 
     const fullName = `${foundUser.profile.firstName} ${foundUser.profile.lastName}`;
 
-    const encodeReqId = await AppUtilities.encode(requestId);
-
     const resetUrlUser = new URL(
-      `${process.env.FRONTEND_URL_USER}/pages/auth/reset-password/${encodeReqId}`,
+      `${process.env.FRONTEND_URL_USER}/pages/auth/reset-password/${requestId}`,
     );
 
     const resetUrlAdmin = new URL(
-      `${process.env.FRONTEND_URL_ADMIN}/pages/auth/reset-password/${encodeReqId}`,
+      `${process.env.FRONTEND_URL_ADMIN}/pages/auth/reset-password/${requestId}`,
     );
-
-    const findImage = await prismaClient.mailImage.findFirst({
-      where: { code: 'mail-logo' },
-    });
-
-    if (!findImage) throw new BadRequestException('Image logo not setup');
-
-    const { logo } = findImage;
+    const imagePath =
+      'aHR0cHM6Ly9yZXMuY2xvdWRpbmFyeS5jb20vZGpta3l4eGJjL2ltYWdlL3VwbG9hZC92MTY5NzYxNDYzOC9kZXZlbG9wbWVudC9odHRwczp3aGFsZS1hcHAtd3E3aGMub25kaWdpdGFsb2NlYW4uYXBwL2ltYWdlcy9tYWlsLWltYWdlcy9pLVdvcmstaW4tQWZyaWthX3Z5MXM4ei5wbmc=';
 
     const emailBuilder = new EmailBuilder()
       .useTemplate(emailTemplate, {
         fullName,
         email,
-        resetUrl:
+        login:
           templateName === TEMPLATE.RESET_MAIL_ADMIN
-            ? resetUrlAdmin
-            : resetUrlUser,
-        imagePath: AppUtilities.decode(logo),
+            ? { url: resetUrlAdmin }
+            : { url: resetUrlUser },
+        imagePath: AppUtilities.decode(imagePath),
       })
       .addRecipients([email]);
 
