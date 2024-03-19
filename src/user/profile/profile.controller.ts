@@ -63,6 +63,13 @@ export class ProfileController {
     return this.userService.uploadProfilePicture(profilePic, dto, user);
   }
 
+  @ApiResponseMeta({ message: 'Resumes fetched Successfully' })
+  @Post('/resume')
+  @UseGuards(AuthGuard())
+  async getResume(@GetUser() user: User) {
+    return this.userService.getResumes(user);
+  }
+
   @ApiResponseMeta({ message: 'Technical Skill Added Successfully' })
   @Post('/technical-skill/create')
   @UseGuards(AuthGuard())
