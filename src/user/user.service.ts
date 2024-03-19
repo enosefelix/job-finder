@@ -175,6 +175,7 @@ export class UserService extends CrudService<
             languages: true,
             workExperiences: true,
             certifications: true,
+            resumes: true,
           },
         },
       },
@@ -776,6 +777,13 @@ export class UserService extends CrudService<
 
     await this.prismaClient.tags.delete({
       where: { id: tagToDelete.id },
+    });
+  }
+
+  async getResumes(user: User) {
+    const profileId = user.profileId;
+    return await this.prismaClient.resume.findMany({
+      where: { profileId },
     });
   }
 }

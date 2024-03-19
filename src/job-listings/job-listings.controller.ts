@@ -54,6 +54,7 @@ export class JobListingsController {
   @UseGuards(AuthGuard())
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: ApplyJobListingDto })
+  @ApiResponseMeta({ message: 'Applied JobListing Successfully' })
   async applyJobListing(
     @UploadedFiles()
     files: {

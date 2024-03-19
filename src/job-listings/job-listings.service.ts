@@ -214,6 +214,82 @@ export class JobListingsService extends CrudService<
     }
   }
 
+  async uploadToCloud(resume: any, coverLetter: any, user: User, url: any) {
+    let uploadResume = null;
+    let uploadCoverLetter = null;
+    if (resume) {
+      uploadResume = this.cloudinaryService.uploadResume(
+        resume,
+        ResourceType.Raw,
+        url,
+        user.id,
+      );
+    }
+
+    if (coverLetter) {
+      uploadCoverLetter = this.cloudinaryService.uploadCoverLetter(
+        coverLetter,
+        ResourceType.Raw,
+        url,
+        user.id,
+      );
+    }
+
+    let [resumeUrl, coverLetterUrl] = await Promise.all([
+      uploadResume,
+      uploadCoverLetter,
+    ]);
+
+    resumeUrl = resumeUrl?.secure_url || '';
+    coverLetterUrl = coverLetterUrl?.secure_url || '';
+    return { resumeUrl, coverLetterUrl };
+  }
+
+  async uploadOrCreateJobListing(
+    resumeUrl: string,
+    coverLetterUrl: string,
+    possibleStartDate: any,
+    jobListing: JobListing,
+    user: User,
+    id: string,
+  ) {
+    const findJobApplication =
+      await this.prismaClient.jobListingApplications.findFirst({
+        where: { userId: user.id, jobListingId: id },
+      });
+
+    const jobApplicationData = {
+      resume: resumeUrl,
+      coverLetter: coverLetterUrl,
+      possibleStartDate,
+      jobListing: { connect: { id: jobListing.id } },
+      user: { connect: { id: user.id } },
+      createdBy: user.id,
+    };
+
+    if (!findJobApplication) {
+      return await this.prismaClient.jobListingApplications.create({
+        data: jobApplicationData,
+        include: {
+          user: {
+            select: { profile: true },
+          },
+          jobListing: true,
+        },
+      });
+    }
+    return await this.prismaClient.jobListingApplications.update({
+      where: { id: findJobApplication.id },
+      data: jobApplicationData,
+      include: {
+        user: {
+          select: { profile: true },
+        },
+        jobListing: true,
+      },
+    });
+  }
+
   async apply(
     id: string,
     user: User,
@@ -224,91 +300,46 @@ export class JobListingsService extends CrudService<
     },
     req: any,
   ): Promise<JobListingApplications | any> {
-    try {
-      const url = req.url;
-      const { possibleStartDate } = applyDto;
-      const { resume, coverLetter } = files;
+    return this.prismaClient.$transaction(async (prisma) => {
+      try {
+        const url = req.url;
+        const { possibleStartDate } = applyDto;
+        const { resume, coverLetter } = files;
 
-      const jobListing = await this.prismaClient.jobListing.findFirst({
-        where: {
-          id,
-          status: JOB_LISTING_STATUS.APPROVED,
-        },
-      });
-
-      if (!jobListing) throw new NotFoundException('Job Listing not found');
-
-      this.logger.debug('Saving resume and cover letter to cloud...');
-      const uploadResume: any = resume
-        ? this.cloudinaryService.uploadResume(
-            resume,
-            ResourceType.Raw,
-            url,
-            user.id,
-          )
-        : null;
-      const uploadCoverLetter: any = coverLetter
-        ? this.cloudinaryService.uploadCoverLetter(
-            coverLetter,
-            ResourceType.Raw,
-            url,
-            user.id,
-          )
-        : null;
-      let [resumeUrl, coverLetterUrl] = await Promise.all([
-        uploadResume,
-        uploadCoverLetter,
-      ]);
-
-      resumeUrl = resumeUrl?.secure_url || '';
-      coverLetterUrl = coverLetterUrl?.secure_url || '';
-
-      this.logger.debug('Files saved to the cloud successfully');
-
-      const findJobApplication =
-        await this.prismaClient.jobListingApplications.findFirst({
-          where: { userId: user.id, jobListingId: id },
+        const jobListing = await prisma.jobListing.findFirst({
+          where: {
+            id,
+            status: JOB_LISTING_STATUS.APPROVED,
+          },
         });
 
-      const jobApplicationData = {
-        resume: resumeUrl,
-        coverLetter: coverLetterUrl,
-        possibleStartDate,
-        jobListing: { connect: { id: jobListing.id } },
-        user: { connect: { id: user.id } },
-        createdBy: user.id,
-      };
+        if (!jobListing) throw new NotFoundException('Job Listing not found');
 
-      const jobApplication = !findJobApplication
-        ? await this.prismaClient.jobListingApplications.create({
-            data: jobApplicationData,
-            include: {
-              user: {
-                select: { profile: true },
-              },
-              jobListing: true,
-            },
-          })
-        : await this.prismaClient.jobListingApplications.update({
-            where: { id: findJobApplication.id },
-            data: jobApplicationData,
-            include: {
-              user: {
-                select: { profile: true },
-              },
-              jobListing: true,
-            },
-          });
+        this.logger.debug('Saving resume and cover letter to cloud...');
+        const { resumeUrl, coverLetterUrl } = await this.uploadToCloud(
+          resume,
+          coverLetter,
+          user,
+          url,
+        );
+        this.logger.debug('Files saved to cloud successfully');
 
-      return {
-        message: 'Job Listing applied successfully!',
-        jobApplication,
-      };
-    } catch (error) {
-      console.log(error);
-      return error.message;
-      throw new BadRequestException(error.message);
-    }
+        const apply = await this.uploadOrCreateJobListing(
+          resumeUrl,
+          coverLetterUrl,
+          possibleStartDate,
+          jobListing,
+          user,
+          id,
+        );
+
+        return apply;
+      } catch (error) {
+        console.log(error);
+        return error.message;
+        throw new BadRequestException(error.message);
+      }
+    });
   }
 
   async updateJobListing(
