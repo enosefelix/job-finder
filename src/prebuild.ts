@@ -34,7 +34,6 @@ if (fs.existsSync(envFilePath)) {
 async function loadEnvVariables() {
   await dotenv.config();
   const DATABASEURL = process.env.DATABASEURL;
-  console.log('🚀 ~ file: prebuild.ts:6 ~ DATABASEURL:', DATABASEURL);
 }
 
 // Call the function

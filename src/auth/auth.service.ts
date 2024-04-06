@@ -118,6 +118,7 @@ export class AuthService {
     loginDto: LoginDto,
     ip: string,
     response: Response,
+    roleType: ROLE_TYPE,
   ): Promise<any> {
     try {
       // eslint-disable-next-line prefer-const
@@ -133,7 +134,7 @@ export class AuthService {
         include: { role: true, profile: true },
       });
 
-      if (!user || user.role.code !== ROLE_TYPE.USER)
+      if (!user || user.role.code !== roleType)
         throw new UnauthorizedException(AUTH_ERROR_MSGS.CREDENTIALS_DONT_MATCH);
 
       if (user.googleId)
@@ -173,7 +174,6 @@ export class AuthService {
 
       const properties = AppUtilities.extractProperties(updatedUser);
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [, , sessionId] = accessToken.split('.');
       this.setCookies(accessToken, response);
 
@@ -197,21 +197,16 @@ export class AuthService {
     ip: string,
     response: Response,
   ): Promise<any> {
-    try {
-      const user = await this.prismaClient.user.findUnique({
-        where: { email: loginDto.email },
-        include: { role: true },
-      });
-      if (user?.role?.code !== ROLE_TYPE.ADMIN) {
-        throw new UnauthorizedException(
-          `You do not have the necessary permissions to perform this action. Only administrators are allowed to access this feature.`,
-        );
-      }
-      return await this.login(loginDto, ip, response);
-    } catch (e) {
-      console.log(e);
-      throw new BadRequestException(e.message);
-    }
+    console.log('here2');
+    return await this.login(loginDto, ip, response, ROLE_TYPE.ADMIN);
+  }
+
+  async userLogin(
+    loginDto: LoginDto,
+    ip: string,
+    response: Response,
+  ): Promise<any> {
+    return await this.login(loginDto, ip, response, ROLE_TYPE.USER);
   }
 
   async logout(userId: string) {
@@ -219,7 +214,10 @@ export class AuthService {
     await this.cacheService.remove(`${CacheKeysEnums.TOKENS}:${userId}`);
   }
 
-  async sendMail(forgotPassDto: SendResetLinkDto): Promise<any> {
+  async sendMail(
+    forgotPassDto: SendResetLinkDto,
+    roleType: ROLE_TYPE,
+  ): Promise<any> {
     try {
       const { email } = forgotPassDto;
 
@@ -228,7 +226,7 @@ export class AuthService {
         include: { role: true },
       });
 
-      if (!foundUser || foundUser.role.code !== ROLE_TYPE.USER)
+      if (!foundUser || foundUser.role.code !== roleType)
         throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
       if (foundUser.googleId)
@@ -239,9 +237,22 @@ export class AuthService {
           AUTH_ERROR_MSGS.SUSPENDED_ACCOUNT_RESET_USER,
         );
 
+      let template;
+      switch (roleType) {
+        case ROLE_TYPE.ADMIN:
+          template = TEMPLATE.RESET_MAIL_ADMIN;
+          break;
+        case ROLE_TYPE.USER:
+          template = TEMPLATE.RESET_MAIL_USER;
+          break;
+        // Add more cases if there are more role types
+        default:
+          throw new BadRequestException('Invalid role type');
+      }
+
       const sendMail = await this.messagingService.sendUpdateEmail(
         email,
-        TEMPLATE.RESET_MAIL_USER,
+        template,
       );
 
       return sendMail;
@@ -251,7 +262,11 @@ export class AuthService {
     }
   }
 
-  async resetPassword(requestId: string, resetPasswordDto: ResetPasswordDto) {
+  async resetPassword(
+    requestId: string,
+    resetPasswordDto: ResetPasswordDto,
+    roleType?: ROLE_TYPE,
+  ): Promise<any> {
     const tokenData = await this.cacheService.get(
       CacheKeysEnums.REQUESTS + requestId,
     );
@@ -259,6 +274,9 @@ export class AuthService {
     if (!tokenData) {
       throw new BadRequestException(AUTH_ERROR_MSGS.EXPIRED_LINK);
     }
+
+    if (roleType && roleType === ROLE_TYPE.ADMIN)
+      throw new UnauthorizedException(AUTH_ERROR_MSGS.FORBIDDEN);
 
     const { newPassword, confirmNewPassword } = resetPasswordDto;
 

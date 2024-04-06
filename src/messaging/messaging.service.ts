@@ -50,10 +50,7 @@ export class MessagingService {
 
     const emailTemplate = await prismaClient.messageTemplate.findFirst({
       where: {
-        code:
-          templateName === TEMPLATE.RESET_MAIL_ADMIN
-            ? 'reset-password-admin'
-            : 'reset-password-user',
+        code: templateName,
       },
     });
 
@@ -72,7 +69,7 @@ export class MessagingService {
         userId: foundUser.id,
         role: foundUser?.role?.code,
       },
-      parseInt(process.env.PASSWORD_RESET_EXPIRES),
+      parseInt(process.env.PASSWORD_RESET_EXPIRES || '3600'),
     );
 
     const fullName = `${foundUser.profile.firstName} ${foundUser.profile.lastName}`;
@@ -85,20 +82,21 @@ export class MessagingService {
       `${process.env.FRONTEND_URL_ADMIN}/pages/auth/reset-password/${requestId}`,
     );
 
-    const imagePath =
-      'aHR0cHM6Ly9yZXMuY2xvdWRpbmFyeS5jb20vZGpta3l4eGJjL2ltYWdlL3VwbG9hZC92MTY5NzYxNDYzOC9kZXZlbG9wbWVudC9odHRwczp3aGFsZS1hcHAtd3E3aGMub25kaWdpdGFsb2NlYW4uYXBwL2ltYWdlcy9tYWlsLWltYWdlcy9pLVdvcmstaW4tQWZyaWthX3Z5MXM4ei5wbmc=';
+    const imagePath = this.configService.get<string>(
+      'smtp.attachments.imagePath',
+    );
+
+    const resetUrl =
+      templateName === TEMPLATE.RESET_MAIL_ADMIN ? resetUrlAdmin : resetUrlUser;
 
     const emailBuilder = new EmailBuilder()
       .useTemplate(emailTemplate, {
         fullName,
         email,
-        resetUrl:
-          templateName === TEMPLATE.RESET_MAIL_ADMIN
-            ? resetUrlAdmin
-            : resetUrlUser,
+        resetUrl,
         imagePath: AppUtilities.decode(imagePath),
       })
-      .addRecipients([email]);
+      .addRecipients(email);
 
     // add sender details from config settings
     emailBuilder.addFrom(config.senderAddress, config.senderName);

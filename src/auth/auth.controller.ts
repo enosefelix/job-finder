@@ -17,7 +17,7 @@ import { LoginDto } from './dto/login.dto';
 import { RealIp } from 'nestjs-real-ip';
 import { SendResetLinkDto } from './dto/send-reset-link.dto';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { API_TAGS } from '@@common/interfaces/index';
+import { API_TAGS, ROLE_TYPE } from '@@common/interfaces/index';
 import { SignupDto } from './dto/signup.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { User } from '@prisma/client';
@@ -46,7 +46,7 @@ export class AuthController {
     @RealIp() ip: string,
     @Res({ passthrough: true }) response: Response,
   ): Promise<any> {
-    return this.authService.login(dto, ip.toString(), response);
+    return this.authService.userLogin(dto, ip.toString(), response);
   }
 
   @ApiBearerAuth()
@@ -67,7 +67,7 @@ export class AuthController {
   })
   @Post('auth/request-password-reset')
   async sendMail(@Body() dto: SendResetLinkDto): Promise<any> {
-    return this.authService.sendMail(dto);
+    return this.authService.sendMail(dto, ROLE_TYPE.USER);
   }
 
   @ApiResponseMeta({ message: 'Password Reset Successfully' })
