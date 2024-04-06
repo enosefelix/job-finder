@@ -37,8 +37,8 @@ COPY --link . .
 RUN yarn run build
 
 # Run migrations
-COPY --link ./src/common/prisma/schema.prisma .
-RUN yarn run db.migration.run
+# COPY --link ./src/common/prisma/schema.prisma .
+# RUN yarn run db.migration.run
 
 # Final stage for app image
 FROM base
