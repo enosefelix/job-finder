@@ -41,6 +41,7 @@ export class MessagingService {
   }
 
   public async sendUpdateEmail(email: string, templateName: TEMPLATE) {
+    // get message template from db
     const prismaClient = new PrismaClient();
 
     const foundUser = await prismaClient.user.findUnique({
