@@ -337,9 +337,9 @@ model Certification {
 }
 
 model Resume {
-  id          String   @id @default(uuid()) @db.Uuid
-  resume      Bytes?   
-  coverLetter Bytes?   
+  id          String   @id @default(uuid()) @db.Uuid  
+  resume      String   @db.VarChar
+  coverLetter String   @db.VarChar
   profileId   String?  @db.Uuid @unique
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   createdBy   String?  @db.Uuid
