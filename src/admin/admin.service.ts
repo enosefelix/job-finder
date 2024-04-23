@@ -72,7 +72,6 @@ export class AdminService {
     ip: string,
     response: Response,
   ): Promise<any> {
-    console.log('here1');
     return this.authService.adminLogin(loginDto, ip, response);
   }
 

@@ -13,11 +13,6 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { ErrorsInterceptor } from './common/interceptors/errors.interceptor';
 import { PrismaService } from './common/prisma/prisma.service';
 
-const databaseurl = process.env.DATABASEURL;
-console.log('databaseurl', databaseurl);
-const directurl = process.env.DIRECT_URL;
-console.log('directurl', directurl);
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get<ConfigService>(ConfigService);

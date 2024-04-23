@@ -197,7 +197,6 @@ export class AuthService {
     ip: string,
     response: Response,
   ): Promise<any> {
-    console.log('here2');
     return await this.login(loginDto, ip, response, ROLE_TYPE.ADMIN);
   }
 
