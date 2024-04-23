@@ -337,7 +337,6 @@ export class JobListingsService extends CrudService<
       } catch (error) {
         console.log(error);
         return error.message;
-        throw new BadRequestException(error.message);
       }
     });
   }

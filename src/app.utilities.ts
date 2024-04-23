@@ -26,15 +26,18 @@ export class AppUtilities {
   public static handleException(error: any): Error {
     console.error(AppUtilities.requestErrorHandler(error));
     const errorCode: string = error.code;
-    const message: string = error.meta
-      ? error.meta.cause
-        ? error.meta.cause
-        : error.meta.field_name
-        ? error.meta.field_name
-        : error.meta.column
-        ? error.meta.table
-        : error.meta.table
-      : error.message;
+    let message: string = error.message;
+    if (error.meta) {
+      if (error.meta.cause) {
+        message = error.meta.cause;
+      } else if (error.meta.field_name) {
+        message = error.meta.field_name;
+      } else if (error.meta.column) {
+        message = error.meta.table;
+      } else if (error.meta.table) {
+        message = error.meta.table;
+      }
+    }
     switch (errorCode) {
       case 'P0000':
       case 'P2003':

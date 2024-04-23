@@ -384,7 +384,7 @@ export class UserService extends CrudService<
     if (endDate && (endDate as any) instanceof Date) {
       endDate = moment(endDate as unknown as Date).toISOString();
     } else if (typeof endDate === 'string') {
-      endDate;
+      endDate = endDate;
     }
 
     moment(startDate).toISOString();
@@ -415,7 +415,7 @@ export class UserService extends CrudService<
     if (endDate && (endDate as any) instanceof Date) {
       endDate = moment(endDate as unknown as Date).toISOString();
     } else if (typeof endDate === 'string') {
-      endDate;
+      endDate = endDate;
     }
 
     moment(startDate).toISOString();
@@ -474,7 +474,7 @@ export class UserService extends CrudService<
     if (endDate && (endDate as any) instanceof Date) {
       endDate = moment(endDate as unknown as Date).toISOString();
     } else if (typeof endDate === 'string') {
-      endDate;
+      endDate = endDate;
     }
 
     moment(startDate).toISOString();
@@ -514,7 +514,7 @@ export class UserService extends CrudService<
     if (endDate && (endDate as any) instanceof Date) {
       endDate = moment(endDate as unknown as Date).toISOString();
     } else if (typeof endDate === 'string') {
-      endDate;
+      endDate = endDate;
     }
 
     moment(startDate).toISOString();
