@@ -300,7 +300,7 @@ export class JobListingsService extends CrudService<
     },
     req: any,
   ): Promise<JobListingApplications | any> {
-    return this.prismaClient.$transaction(async (prisma) => {
+    return this.prismaClient.$transaction(async (prisma: PrismaClient) => {
       try {
         const url = req.url;
         const { possibleStartDate } = applyDto;

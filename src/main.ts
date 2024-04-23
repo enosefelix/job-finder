@@ -71,26 +71,23 @@ async function bootstrap() {
   app.enableCors({
     origin: '*',
   });
-  // const allowedOrigins = [
-  //   /^(https:\/\/([^\.]*\.)?ngrok\.io)$/i,
-  //   // 'https://job-search-api.onrender.com',
-  //   'https://whale-app-wq7hc.ondigitalocean.app',
-  //   'http://localhost:3000',
-  //   'http://localhost:3001',
-  //   'https://job-search-front-end.vercel.app',
-  //   '/^(https://([^.]*.)?job-search-front-end-[^.]+.vercel.app/)$/i',
-  // ];
-  // const allowedOriginsProd = [];
-  // const origins =
-  //   environment === 'production' ? allowedOriginsProd : allowedOrigins;
+  const allowedOrigins = [
+    /^(https:\/\/([^\.]*\.)?ngrok\.io)$/i,
+    // 'https://job-search-api.onrender.com',
+    'https://whale-app-wq7hc.ondigitalocean.app',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://job-search-front-end.vercel.app',
+    '/^(https://([^.]*.)?job-search-front-end-[^.]+.vercel.app/)$/i',
+  ];
+  const allowedOriginsProd = [];
+  const origins =
+    environment === 'production' ? allowedOriginsProd : allowedOrigins;
 
-  // app.enableCors({
-  //   origin: origins,
-  //   credentials: true,
-  // });
-
-  console.log('🚀 ~ bootstrap ~ dev appPort:', appPort);
-  console.log('🚀 ~ bootstrap ~ dev appHost:', appHost);
+  app.enableCors({
+    origin: origins,
+    credentials: true,
+  });
   await app.listen(appPort, appHostname);
 }
 

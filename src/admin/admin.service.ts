@@ -78,34 +78,19 @@ export class AdminService {
   async sendResetMail(forgotPassDto: SendResetLinkDto): Promise<any> {
     try {
       const { email } = forgotPassDto;
-
-      const foundUser = await this.prismaClient.user.findFirst({
+      const user = await this.prismaClient.user.findUnique({
         where: { email },
         include: { role: true },
       });
 
-      if (!foundUser)
-        throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+      if (!user) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-      if (foundUser.status === USER_STATUS.SUSPENDED)
+      if (user.role.code !== ROLE_TYPE.ADMIN)
         throw new UnauthorizedException(
-          AUTH_ERROR_MSGS.SUSPENDED_ACCOUNT_RESET_ADMIN,
+          'You do not have the necessary permission. You are not an admin',
         );
 
-      if (foundUser?.role?.code !== ROLE_TYPE.ADMIN)
-        throw new UnauthorizedException(
-          'You do not have the necessary permissions to perform this action. Only administrators are allowed to access this feature.',
-        );
-
-      if (foundUser.googleId)
-        throw new UnauthorizedException(AUTH_ERROR_MSGS.GOOGLE_CANNOT_RESET);
-
-      const sendMail = await this.messagingService.sendUpdateEmail(
-        email,
-        TEMPLATE.RESET_MAIL_ADMIN,
-      );
-
-      return sendMail;
+      return this.authService.sendMail(forgotPassDto, ROLE_TYPE.ADMIN);
     } catch (e) {
       console.log(e);
       throw new BadRequestException(e.message);
@@ -113,38 +98,11 @@ export class AdminService {
   }
 
   async resetPassword(requestId: string, resetPasswordDto: ResetPasswordDto) {
-    const tokenData = await this.cacheService.get(
-      CacheKeysEnums.REQUESTS + requestId,
+    return this.authService.resetPassword(
+      requestId,
+      resetPasswordDto,
+      ROLE_TYPE.ADMIN,
     );
-
-    if (!tokenData) {
-      throw new BadRequestException(AUTH_ERROR_MSGS.EXPIRED_LINK);
-    }
-
-    if (tokenData.role !== ROLE_TYPE.ADMIN)
-      throw new BadRequestException(
-        'You do not have the necessary permissions to perform this action. Only administrators are allowed to access this feature.',
-      );
-
-    const { newPassword, confirmNewPassword } = resetPasswordDto;
-
-    const hashedPassword = await AppUtilities.hasher(newPassword);
-
-    if (newPassword !== confirmNewPassword)
-      throw new NotAcceptableException(AUTH_ERROR_MSGS.PASSWORD_MATCH);
-
-    const dto: Prisma.UserUpdateArgs = {
-      where: { email: tokenData.email },
-      data: {
-        password: hashedPassword,
-        updatedBy: tokenData.userId,
-      },
-    };
-
-    const updatedUser = await this.prismaClient.user.update(dto);
-
-    await this.cacheService.remove(CacheKeysEnums.REQUESTS + requestId);
-    return updatedUser;
   }
 
   public async getJobListing(id: string): Promise<any> {
@@ -162,7 +120,6 @@ export class AdminService {
 
   async updatePassword(dto: UpdatePasswordDto, user: User): Promise<any> {
     try {
-      const { oldPassword, newPassword, confirmNewPassword } = dto;
       const foundUser = await this.prismaClient.user.findUnique({
         where: { id: user.id },
         include: { role: true },
@@ -172,40 +129,7 @@ export class AdminService {
         throw new UnauthorizedException(
           'You do not have the necessary permissions to perform this action. Only administrators are allowed to access this feature.',
         );
-      if (foundUser.googleId)
-        throw new NotAcceptableException(
-          AUTH_ERROR_MSGS.GOOGLE_CHANGE_PASS_ERROR,
-        );
-
-      if (!foundUser)
-        throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
-
-      if (!(await AppUtilities.validator(oldPassword, foundUser.password)))
-        throw new UnauthorizedException(AUTH_ERROR_MSGS.INVALID_OLD_PASSWORD);
-
-      if (newPassword !== confirmNewPassword)
-        throw new NotAcceptableException(AUTH_ERROR_MSGS.PASSWORD_MATCH);
-
-      if (oldPassword === newPassword)
-        throw new NotAcceptableException(AUTH_ERROR_MSGS.SAME_PASSWORD_ERROR);
-
-      const hashedPassword = await AppUtilities.hasher(newPassword);
-
-      const updatedPassword = await this.prismaClient.user.update({
-        where: { id: user.id },
-        data: {
-          password: hashedPassword,
-          updatedBy: user.id,
-        },
-      });
-
-      const properties = AppUtilities.extractProperties(updatedPassword);
-
-      const { rest } = properties;
-
-      return {
-        user: rest,
-      };
+      return await this.authService.updatePassword(dto, user);
     } catch (error) {
       console.log(error);
       throw new BadRequestException(error.message);

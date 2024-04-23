@@ -7,7 +7,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASEURL")
+  url = env("DATABASEURL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -337,10 +337,10 @@ model Certification {
 }
 
 model Resume {
-  id          String   @id @default(uuid()) @db.Uuid
+  id          String   @id @default(uuid()) @db.Uuid  
   resume      String   @db.VarChar
   coverLetter String   @db.VarChar
-  profileId   String?  @db.Uuid
+  profileId   String?  @db.Uuid @unique
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   createdBy   String?  @db.Uuid
   updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(6)

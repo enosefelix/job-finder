@@ -3,6 +3,7 @@
 /node_modules
 .env
 .fenvcon.json
+Dockerfile
 
 # Logs
 logs

@@ -23,6 +23,7 @@
     "db.migration": "npx prisma migrate dev --create-only --schema=./src/common/prisma/schema.prisma",
     "db.migration.apply": "npx prisma migrate dev --schema=./src/common/prisma/schema.prisma && yarn db.generate",
     "db.migration.run": "npx prisma migrate deploy --schema=./src/common/prisma/schema.prisma && yarn db.generate",
+    "db.migration.reset": "npx prisma migrate reset --schema=./src/common/prisma/schema.prisma",
     "db.generate": "npx prisma generate --schema=./src/common/prisma/schema.prisma",
     "db.seed": "ts-node src/common/prisma/seed.ts"
   },
