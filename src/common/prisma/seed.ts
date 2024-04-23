@@ -124,8 +124,8 @@ async function seedDatabase() {
               createdBy: foundUser.id,
             },
           }),
-        ),
-          console.log(`Job listing updated ${job.title}`);
+        );
+        console.log(`Job listing updated ${job.title}`);
       } catch (error) {
         console.error('Error seeding job listing', error);
       }
@@ -141,8 +141,8 @@ async function seedDatabase() {
               author: { connect: { id: foundUser.id } },
             },
           }),
-        ),
-          console.log(`Blog updated ${blog.title}`);
+        );
+        console.log(`Blog updated ${blog.title}`);
       } catch (error) {
         console.error('Error seeding job listing', error);
       }

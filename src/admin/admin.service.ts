@@ -138,7 +138,7 @@ export class AdminService {
 
   async getAllUsers(dto: UsersFilterDto, user: User): Promise<User[]> {
     try {
-      return this.userService.getAllUsers(dto, user);
+      return await this.userService.getAllUsers(dto, user);
     } catch (error) {
       console.log(error);
       throw new BadRequestException(error.message);
@@ -448,7 +448,7 @@ export class AdminService {
     user: User,
   ): Promise<JobListing[]> {
     try {
-      return this.jobListingService.getJobListingsAdmin(
+      return await this.jobListingService.getJobListingsAdmin(
         { cursor, direction, orderBy, size, ...dto },
         user,
       );

@@ -22,7 +22,7 @@ export class CloudinaryService {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { uploader, url } = v2;
 
-      return new Promise((resolve, reject) => {
+      return await new Promise((resolve, reject) => {
         const folder = this.folder;
         const subFolder = this.subFolder;
         const uploadStream = uploader.upload_stream(
@@ -59,7 +59,6 @@ export class CloudinaryService {
     } catch (error) {
       console.log(error);
       return error.message;
-      throw new BadRequestException(error.message);
     }
   }
 
@@ -69,7 +68,7 @@ export class CloudinaryService {
     request,
     id: string,
   ) {
-    return this.uploadFile(file, resourceType, request, id, 'resumes');
+    return await this.uploadFile(file, resourceType, request, id, 'resumes');
   }
 
   async uploadCoverLetter(
@@ -78,12 +77,18 @@ export class CloudinaryService {
     request,
     id: string,
   ) {
-    return this.uploadFile(file, resourceType, request, id, 'cover-letters');
+    return await this.uploadFile(
+      file,
+      resourceType,
+      request,
+      id,
+      'cover-letters',
+    );
   }
 
   async downloadFile(publicId: string) {
     try {
-      return new Promise((resolve, reject) => {
+      return await new Promise((resolve, reject) => {
         v2.api.resource(publicId, { resource_type: 'raw' }, (error, result) => {
           if (error) return reject(error);
           resolve(result);
@@ -101,7 +106,7 @@ export class CloudinaryService {
     id: string,
   ): Promise<UploadApiResponse | UploadApiErrorResponse> {
     try {
-      return new Promise((resolve, reject) => {
+      return await new Promise((resolve, reject) => {
         v2.uploader
           .upload_stream(
             {
@@ -138,7 +143,7 @@ export class CloudinaryService {
 
   async deleteBlogImage(id: string) {
     try {
-      return new Promise((resolve, reject) => {
+      return await new Promise((resolve, reject) => {
         v2.uploader.destroy(
           `${this.folder}/${this.subFolder}/images/blogs/${id}`,
           {
@@ -191,23 +196,5 @@ export class CloudinaryService {
       console.log(error);
       throw new BadRequestException(error.message);
     }
-  }
-
-  async convertToPdf(convert: string[]) {
-    return new Promise((resolve, reject) => {
-      for (const url of convert) {
-        v2.uploader.multi(url, { format: 'pdf' }),
-          (error, result) => {
-            if (error) {
-              console.error(`Error converting file: ${url}`, error);
-              reject(error);
-            } else {
-              if (result.result === 'not found') return resolve(result);
-              console.log('File converted successfully:', result);
-              resolve(result);
-            }
-          };
-      }
-    });
   }
 }
