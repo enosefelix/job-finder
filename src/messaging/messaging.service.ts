@@ -1,16 +1,21 @@
+import { AppUtilities } from '@@/app.utilities';
+import { CacheKeysEnums } from '@@/common/cache/cache.enums';
+import { CacheService } from '@@/common/cache/cache.service';
+import { PrismaService } from '@@/common/prisma/prisma.service';
+import { TEMPLATE } from '@@/mailer/interfaces';
+import {
+  AUTH_ERROR_MSGS,
+  MessageStatus,
+  MessageType,
+} from '@@common/interfaces';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { User } from '@prisma/client';
+import moment from 'moment';
+import { v4 } from 'uuid';
 import { EmailBuilder } from './builder/email-builder';
 import { MailProviders } from './interfaces';
 import { MailService } from './messaging-mail.service';
-import { PrismaClient } from '@prisma/client';
-import { MessageStatus, MessageType } from '@@common/interfaces';
-import moment from 'moment';
-import { CacheService } from '@@/common/cache/cache.service';
-import { CacheKeysEnums } from '@@/common/cache/cache.enums';
-import { v4 } from 'uuid';
-import { TEMPLATE } from '@@/mailer/interfaces';
-import { AppUtilities } from '@@/app.utilities';
 
 @Injectable()
 export class MessagingService {
@@ -20,6 +25,7 @@ export class MessagingService {
     private configService: ConfigService,
     private mailService: MailService,
     private cacheService: CacheService,
+    private prisma: PrismaService,
   ) {
     this.senderEmail = this.configService.get<string>('messaging.senderEmail');
   }
@@ -40,16 +46,34 @@ export class MessagingService {
     };
   }
 
-  public async sendUpdateEmail(email: string, templateName: TEMPLATE) {
+  public async sendUpdateEmail(user: User, templateName: TEMPLATE) {
+    // const getUser = await this.
     // get message template from db
-    const prismaClient = new PrismaClient();
 
-    const foundUser = await prismaClient.user.findUnique({
-      where: { email },
-      include: { profile: true, role: true },
+    const findUser = await this.prisma.user.findFirst({
+      where: {
+        id: user.id,
+      },
+      include: {
+        profile: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        role: {
+          select: {
+            code: true,
+          },
+        },
+      },
     });
 
-    const emailTemplate = await prismaClient.messageTemplate.findFirst({
+    if (!findUser)
+      throw new BadRequestException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+
+    const emailTemplate = await this.prisma.messageTemplate.findFirst({
       where: {
         code: templateName,
       },
@@ -65,15 +89,15 @@ export class MessagingService {
     await this.cacheService.set(
       CacheKeysEnums.REQUESTS + requestId,
       {
-        email,
-        fullName: `${foundUser.profile.firstName} ${foundUser.profile.lastName}`,
-        userId: foundUser.id,
-        role: foundUser?.role?.code,
+        email: user.email,
+        fullName: `${findUser.profile.firstName} ${findUser.profile.lastName}`,
+        userId: user.id,
+        role: findUser.role?.code,
       },
       parseInt(process.env.PASSWORD_RESET_EXPIRES || '3600'),
     );
 
-    const fullName = `${foundUser.profile.firstName} ${foundUser.profile.lastName}`;
+    const fullName = `${findUser.profile.firstName} ${findUser.profile.lastName}`;
 
     const resetUrlUser = new URL(
       `${process.env.FRONTEND_URL_USER}/pages/auth/reset-password/${requestId}`,
@@ -93,25 +117,25 @@ export class MessagingService {
     const emailBuilder = new EmailBuilder()
       .useTemplate(emailTemplate, {
         fullName,
-        email,
+        email: user.email,
         resetUrl,
         imagePath: AppUtilities.decode(imagePath),
       })
-      .addRecipients(email);
+      .addRecipients(user.email);
 
     // add sender details from config settings
     emailBuilder.addFrom(config.senderAddress, config.senderName);
 
     // create message in base message table
-    const message = await prismaClient.message.create({
+    const message = await this.prisma.message.create({
       data: {
         bindings: {
           sender: this.senderEmail,
-          recipient: email,
+          recipient: user.email,
         },
         template: { connect: { id: emailTemplate.id } },
         type: MessageType.Email,
-        client: { connect: { id: foundUser.id } },
+        client: { connect: { id: user.id } },
       },
     });
 
@@ -120,7 +144,7 @@ export class MessagingService {
       .setMailProviderOptions(config.provider, config)
       .sendEmail(emailBuilder);
     if (ok) {
-      await prismaClient.message.update({
+      await this.prisma.message.update({
         where: { id: message.id },
         data: {
           status: MessageStatus.Sent,

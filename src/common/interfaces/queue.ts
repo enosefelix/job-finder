@@ -31,7 +31,7 @@ export abstract class QueueProcessor {
     this.logger.log(
       `Processing job ${job.id} of type ${
         job.name
-      } with data \n ${JSON.stringify(job.data, null, 2)}...`,
+      } with data \n ${JSON.stringify(job.data.user.email, null, 2)}...`,
     );
   }
 

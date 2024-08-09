@@ -14,7 +14,7 @@ const tenantPrismaClientProvider: FactoryProvider<Promise<PrismaClient>> = {
     request: RequestWithUser,
     manager: PrismaClientManager,
   ) => {
-    const user = request.user?.userId;
+    const user = request.user;
     if (!user) {
       throw new Error('User not found');
     }

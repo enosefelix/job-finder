@@ -1,43 +1,39 @@
+import { AppUtilities } from '@@/app.utilities';
+import { AuthService } from '@@/auth/auth.service';
+import { CloudinaryService } from '@@/cloudinary/cloudinary.service';
 import { CrudService } from '@@/common/database/crud.service';
-import { Prisma, User } from '@prisma/client';
-import { BlogMapType } from './blog.maptype';
+import {
+  AUTH_ERROR_MSGS,
+  BLOG_ERROR_MSGS,
+  BLOG_STATUS,
+} from '@@/common/interfaces';
 import { PrismaService } from '@@/common/prisma/prisma.service';
-import { BlogFilterDto } from './dto/blog-filter.dto';
 import {
   BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { AppUtilities } from '@@/app.utilities';
-import { CreateBlogDto } from './dto/create-blog.dto';
-import {
-  AUTH_ERROR_MSGS,
-  BLOG_ERROR_MSGS,
-  BLOG_STATUS,
-} from '@@/common/interfaces';
-import { CloudinaryService } from '@@/cloudinary/cloudinary.service';
-import { UpdateBlogDto } from './dto/update-blog.dto';
-import { UpdateBlogStatusDto } from './dto/update-blog-status.dto';
-import { AuthService } from '@@/auth/auth.service';
+import { Prisma, User } from '@prisma/client';
 import { AdminBlogFilterDto } from '../dto/admin-blogs.dto';
-import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
+import { BlogMapType } from './blog.maptype';
+import { BlogFilterDto } from './dto/blog-filter.dto';
+import { CreateBlogDto } from './dto/create-blog.dto';
+import { UpdateBlogStatusDto } from './dto/update-blog-status.dto';
+import { UpdateBlogDto } from './dto/update-blog.dto';
 
 @Injectable()
 export class BlogService extends CrudService<
   Prisma.BlogDelegate<Prisma.RejectOnNotFound>,
   BlogMapType
 > {
-  private prismaClient;
   private readonly logger = new Logger(BlogService.name);
   constructor(
-    private prismaClientManager: PrismaClientManager,
     private prisma: PrismaService,
     private authService: AuthService,
     private cloudinaryService: CloudinaryService,
   ) {
     super(prisma.blog);
-    this.prismaClient = this.prismaClientManager.getPrismaClient();
   }
 
   async getAllBlogs({
@@ -143,7 +139,7 @@ export class BlogService extends CrudService<
 
   async getMyBlog(id: string, user: User) {
     try {
-      const blog = await this.prismaClient.blog.findFirst({
+      const blog = await this.prisma.blog.findFirst({
         where: { id, authorId: user.id },
         include: { author: true },
       });
@@ -159,7 +155,7 @@ export class BlogService extends CrudService<
 
   async getBlog(id: string) {
     try {
-      const blog = await this.prismaClient.blog.findUnique({
+      const blog = await this.prisma.blog.findUnique({
         where: { id },
         include: { author: true },
       });
@@ -176,7 +172,7 @@ export class BlogService extends CrudService<
   async createBlog(dto: CreateBlogDto, image: Express.Multer.File, user: User) {
     try {
       const { body, ...rest } = dto;
-      const findUser = await this.prismaClient.user.findUnique({
+      const findUser = await this.prisma.user.findUnique({
         where: { id: user.id },
       });
 
@@ -185,7 +181,7 @@ export class BlogService extends CrudService<
 
       const readTime = await AppUtilities.calculateReadingTime(body);
 
-      const blog = await this.prismaClient.blog.create({
+      const blog = await this.prisma.blog.create({
         data: {
           ...rest,
           image: null,
@@ -212,7 +208,7 @@ export class BlogService extends CrudService<
       this.logger.debug('Image saved to the cloud successfully');
 
       const profilePic = uploadBlogImage?.secure_url || '';
-      const updatedBlog = await this.prismaClient.blog.update({
+      const updatedBlog = await this.prisma.blog.update({
         where: { id: blog.id },
         data: { image: profilePic },
       });
@@ -232,14 +228,14 @@ export class BlogService extends CrudService<
   ) {
     try {
       const { body, ...rest } = dto;
-      const findUser = await this.prismaClient.user.findUnique({
+      const findUser = await this.prisma.user.findUnique({
         where: { id: user.id },
       });
 
       if (!findUser)
         throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-      const blog = await this.prismaClient.blog.findFirst({
+      const blog = await this.prisma.blog.findFirst({
         where: { id, authorId: user.id },
       });
 
@@ -260,7 +256,7 @@ export class BlogService extends CrudService<
       this.logger.debug('Image saved to the cloud successfully');
 
       const profilePic = uploadBlogImage?.secure_url || '';
-      const updatedBlog = await this.prismaClient.blog.update({
+      const updatedBlog = await this.prisma.blog.update({
         where: { id },
         data: { image: profilePic, ...rest, body, readTime },
       });
@@ -280,7 +276,7 @@ export class BlogService extends CrudService<
     try {
       await this.authService.verifyUser(user);
 
-      const blog = await this.prismaClient.blog.findUnique({
+      const blog = await this.prisma.blog.findUnique({
         where: { id },
       });
 
@@ -294,7 +290,7 @@ export class BlogService extends CrudService<
         (status === BLOG_STATUS.APPROVED &&
           blog.status === BLOG_STATUS.REJECTED)
       ) {
-        return await this.prismaClient.blog.update({
+        return await this.prisma.blog.update({
           where: { id },
           data: {
             status: status as BLOG_STATUS,
@@ -311,7 +307,7 @@ export class BlogService extends CrudService<
         (status === BLOG_STATUS.REJECTED &&
           blog.status === BLOG_STATUS.APPROVED)
       ) {
-        return await this.prismaClient.blog.update({
+        return await this.prisma.blog.update({
           where: { id },
           data: {
             status: status as BLOG_STATUS,
@@ -323,7 +319,7 @@ export class BlogService extends CrudService<
           blog.status === BLOG_STATUS.REJECTED) ||
         (status === BLOG_STATUS.PENDING && blog.status === BLOG_STATUS.APPROVED)
       ) {
-        return await this.prismaClient.blog.update({
+        return await this.prisma.blog.update({
           where: { id },
           data: {
             status: status as BLOG_STATUS,
@@ -341,20 +337,20 @@ export class BlogService extends CrudService<
 
   async deleteBlog(id: string, user: User): Promise<void> {
     try {
-      const foundUser = await this.prismaClient.user.findUnique({
+      const foundUser = await this.prisma.user.findUnique({
         where: { id: user.id },
       });
 
       if (!foundUser)
         throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-      const blog = await this.prismaClient.blog.findFirst({
+      const blog = await this.prisma.blog.findFirst({
         where: { id, authorId: user.id },
       });
 
       if (!blog) throw new NotFoundException(BLOG_ERROR_MSGS.BLOG_NOT_FOUND);
 
-      await this.prismaClient.blog.delete({ where: { id } });
+      await this.prisma.blog.delete({ where: { id } });
 
       this.logger.debug('Deleting image from cloud...');
       await this.cloudinaryService.deleteBlogImage(id);

@@ -1,13 +1,14 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  Logger,
-  NotAcceptableException,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { JobListing, Prisma, PrismaClient, User } from '@prisma/client';
+import { ResetPasswordDto } from '@@/auth/dto/reset-password.dto';
+import { SendResetLinkDto } from '@@/auth/dto/send-reset-link.dto';
+import { UpdatePasswordDto } from '@@/auth/dto/updatePassword.dto';
+import { CacheService } from '@@/common/cache/cache.service';
+import { MailerService } from '@@/mailer/mailer.service';
+import { MessagingService } from '@@/messaging/messaging.service';
+import { UserService } from '@@/user/user.service';
+import { AdminJobListingFilterDto } from '@@admin/dto/admin-job-listing.dto';
+import { AuthService } from '@@auth/auth.service';
+import { LoginDto } from '@@auth/dto/login.dto';
+import { CloudinaryService } from '@@cloudinary/cloudinary.service';
 import {
   AUTH_ERROR_MSGS,
   BLOG_STATUS,
@@ -21,35 +22,30 @@ import {
   USER_STATUS,
 } from '@@common/interfaces/index';
 import { PrismaService } from '@@common/prisma/prisma.service';
-import { UsersFilterDto } from './dto/get-users-filter.dto';
-import { AdminJobListingFilterDto } from '@@admin/dto/admin-job-listing.dto';
-import { JobListingsService } from '@@job-listings/job-listings.service';
-import { AuthService } from '@@auth/auth.service';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { LoginDto } from '@@auth/dto/login.dto';
-import { CloudinaryService } from '@@cloudinary/cloudinary.service';
 import { CreateJobListingDto } from '@@job-listings/dto/create-job-listing.dto';
 import { UpdateJobListingDto } from '@@job-listings/dto/edit-job.dto';
-import { AppUtilities } from '../app.utilities';
-import { UserService } from '@@/user/user.service';
-import { UpdateUserStatusDto } from './dto/update-user-status.dto';
-import { SendResetLinkDto } from '@@/auth/dto/send-reset-link.dto';
-import { MailerService } from '@@/mailer/mailer.service';
-import { CacheService } from '@@/common/cache/cache.service';
-import { CacheKeysEnums } from '@@/common/cache/cache.enums';
-import { ResetPasswordDto } from '@@/auth/dto/reset-password.dto';
-import { TEMPLATE } from '@@/mailer/interfaces';
-import { UpdatePasswordDto } from '@@/auth/dto/updatePassword.dto';
-import { UpdateJobListingStatusDto } from './dto/approve-jobListing.dto';
-import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
+import { JobListingsService } from '@@job-listings/job-listings.service';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotAcceptableException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { JobListing, PrismaClient, User } from '@prisma/client';
 import { Response } from 'express';
+import { AppUtilities } from '../app.utilities';
+import { UpdateJobListingStatusDto } from './dto/approve-jobListing.dto';
+import { UsersFilterDto } from './dto/get-users-filter.dto';
 import { ResetPassDto } from './dto/reset-pass.dto';
-import { MessagingService } from '@@/messaging/messaging.service';
+import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 
 @Injectable()
 export class AdminService {
-  private prismaClient;
   private readonly logger = new Logger(JobListingsService.name);
   constructor(
     private prisma: PrismaService,
@@ -61,11 +57,8 @@ export class AdminService {
     private userService: UserService,
     private mailerService: MailerService,
     private cacheService: CacheService,
-    private prismaClientManager: PrismaClientManager,
     private messagingService: MessagingService,
-  ) {
-    this.prismaClient = this.prismaClientManager.getPrismaClient();
-  }
+  ) {}
 
   async login(
     loginDto: LoginDto,
@@ -78,7 +71,7 @@ export class AdminService {
   async sendResetMail(forgotPassDto: SendResetLinkDto): Promise<any> {
     try {
       const { email } = forgotPassDto;
-      const user = await this.prismaClient.user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { email },
         include: { role: true },
       });
@@ -98,11 +91,7 @@ export class AdminService {
   }
 
   async resetPassword(requestId: string, resetPasswordDto: ResetPasswordDto) {
-    return this.authService.resetPassword(
-      requestId,
-      resetPasswordDto,
-      ROLE_TYPE.ADMIN,
-    );
+    return this.authService.resetPassword(requestId, resetPasswordDto);
   }
 
   public async getJobListing(id: string): Promise<any> {
@@ -120,7 +109,7 @@ export class AdminService {
 
   async updatePassword(dto: UpdatePasswordDto, user: User): Promise<any> {
     try {
-      const foundUser = await this.prismaClient.user.findUnique({
+      const foundUser = await this.prisma.user.findUnique({
         where: { id: user.id },
         include: { role: true },
       });
@@ -148,7 +137,7 @@ export class AdminService {
   async getUserById(id: string, adminUser: User): Promise<any> {
     try {
       await this.authService.verifyUser(adminUser);
-      const user = await this.prismaClient.user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { id },
         include: {
           profile: {
@@ -185,12 +174,12 @@ export class AdminService {
   async getUserJobListing(id: string, adminUser: User) {
     try {
       await this.authService.verifyUser(adminUser);
-      const user = await this.prismaClient.user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { id },
       });
       if (!user) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-      const userJobListings = await this.prismaClient.jobListing.findMany({
+      const userJobListings = await this.prisma.jobListing.findMany({
         where: { createdBy: id },
         include: { jobApplications: true },
       });
@@ -217,7 +206,7 @@ export class AdminService {
   ): Promise<any> {
     try {
       await this.authService.verifyUser(adminUser);
-      const user = await this.prismaClient.user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { id },
       });
 
@@ -229,7 +218,7 @@ export class AdminService {
         status === USER_STATUS.ACTIVE &&
         user.status === USER_STATUS.SUSPENDED
       ) {
-        await this.prismaClient.user.update({
+        await this.prisma.user.update({
           where: {
             id,
           },
@@ -244,7 +233,7 @@ export class AdminService {
         status === USER_STATUS.SUSPENDED &&
         user.status === USER_STATUS.ACTIVE
       ) {
-        await this.prismaClient.user.update({
+        await this.prisma.user.update({
           where: { id },
           data: {
             status: status as USER_STATUS,
@@ -252,7 +241,7 @@ export class AdminService {
           },
         });
 
-        await this.prismaClient.jobListing.updateMany({
+        await this.prisma.jobListing.updateMany({
           where: { createdBy: user.id, status: JOB_LISTING_STATUS.APPROVED },
           data: {
             status: JOB_LISTING_STATUS.PENDING,
@@ -273,29 +262,29 @@ export class AdminService {
   async deleteUser(id: string, adminUser: User): Promise<void> {
     try {
       await this.authService.verifyUser(adminUser);
-      const user = await this.prismaClient.user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { id },
       });
 
       if (!user) throw new Error(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-      await this.prismaClient.jobListingApplications.deleteMany({
+      await this.prisma.jobListingApplications.deleteMany({
         where: { createdBy: user.id },
       });
 
-      await this.prismaClient.tags.deleteMany({
+      await this.prisma.tags.deleteMany({
         where: { createdBy: user.id },
       });
 
-      await this.prismaClient.bookmark.deleteMany({
+      await this.prisma.bookmark.deleteMany({
         where: { createdBy: user.id },
       });
 
-      await this.prismaClient.jobListing.deleteMany({
+      await this.prisma.jobListing.deleteMany({
         where: { createdBy: user.id },
       });
 
-      await this.prismaClient.user.delete({
+      await this.prisma.user.delete({
         where: { id },
       });
     } catch (error) {
@@ -312,7 +301,7 @@ export class AdminService {
     try {
       await this.authService.verifyUser(user);
 
-      const jobListing = await this.prismaClient.jobListing.findUnique({
+      const jobListing = await this.prisma.jobListing.findUnique({
         where: { id },
       });
 
@@ -324,7 +313,7 @@ export class AdminService {
         (status === JOB_LISTING_STATUS.APPROVED &&
           jobListing.status === JOB_LISTING_STATUS.REJECTED)
       ) {
-        return await this.prismaClient.jobListing.update({
+        return await this.prisma.jobListing.update({
           where: { id },
           data: {
             status: status as JOB_LISTING_STATUS,
@@ -342,7 +331,7 @@ export class AdminService {
         (status === JOB_LISTING_STATUS.REJECTED &&
           jobListing.status === JOB_LISTING_STATUS.APPROVED)
       ) {
-        return await this.prismaClient.jobListing.update({
+        return await this.prisma.jobListing.update({
           where: { id },
           data: {
             status: status as JOB_LISTING_STATUS,
@@ -358,7 +347,7 @@ export class AdminService {
         (status === JOB_LISTING_STATUS.PENDING &&
           jobListing.status === JOB_LISTING_STATUS.APPROVED)
       ) {
-        return await this.prismaClient.jobListing.update({
+        return await this.prisma.jobListing.update({
           where: { id },
           data: {
             status: status as JOB_LISTING_STATUS,
@@ -378,7 +367,7 @@ export class AdminService {
   }
 
   async deleteJobListing(id: string, user: User): Promise<void> {
-    const foundUser = await this.prismaClient.user.findUnique({
+    const foundUser = await this.prisma.user.findUnique({
       where: { id: user.id },
     });
 
@@ -386,7 +375,7 @@ export class AdminService {
       throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
     }
 
-    const jobListing = await this.prismaClient.jobListing.findFirst({
+    const jobListing = await this.prisma.jobListing.findFirst({
       where: { id },
     });
 
@@ -395,48 +384,46 @@ export class AdminService {
     }
 
     try {
-      await this.prismaClient.$transaction(
-        async (prismaClient: PrismaClient) => {
-          const prismaDeletePromises = [];
+      await this.prisma.$transaction(async (prismaClient: PrismaClient) => {
+        const prismaDeletePromises = [];
 
-          // Delete related data in a single transaction
-          prismaDeletePromises.push(
-            prismaClient.jobListingApplications.deleteMany({
-              where: { jobListingId: id },
-            }),
-            prismaClient.tags.deleteMany({
-              where: { jobListingId: id },
-            }),
-            prismaClient.bookmark.deleteMany({
-              where: { jobListingId: id },
-            }),
-          );
+        // Delete related data in a single transaction
+        prismaDeletePromises.push(
+          prismaClient.jobListingApplications.deleteMany({
+            where: { jobListingId: id },
+          }),
+          prismaClient.tags.deleteMany({
+            where: { jobListingId: id },
+          }),
+          prismaClient.bookmark.deleteMany({
+            where: { jobListingId: id },
+          }),
+        );
 
-          const jobListingApplications =
-            await prismaClient.jobListingApplications.findMany({
-              where: { jobListingId: id },
-            });
+        const jobListingApplications =
+          await prismaClient.jobListingApplications.findMany({
+            where: { jobListingId: id },
+          });
 
-          this.logger.debug('Deleting files from cloud...');
+        this.logger.debug('Deleting files from cloud...');
 
-          for (const jobListingApplication of jobListingApplications) {
-            await this.cloudinaryService.deleteFiles([
-              jobListingApplication.resume,
-              jobListingApplication.coverLetter,
-            ]);
-          }
-          this.logger.debug('Files deleted from cloud successfully');
+        for (const jobListingApplication of jobListingApplications) {
+          await this.cloudinaryService.deleteFiles([
+            jobListingApplication.resume,
+            jobListingApplication.coverLetter,
+          ]);
+        }
+        this.logger.debug('Files deleted from cloud successfully');
 
-          prismaDeletePromises.push(
-            prismaClient.jobListing.delete({
-              where: { id },
-            }),
-          );
+        prismaDeletePromises.push(
+          prismaClient.jobListing.delete({
+            where: { id },
+          }),
+        );
 
-          // Wait for all delete operations to complete
-          await Promise.all(prismaDeletePromises);
-        },
-      );
+        // Wait for all delete operations to complete
+        await Promise.all(prismaDeletePromises);
+      });
     } catch (error) {
       console.log(error);
       throw new BadRequestException(error.message);
@@ -461,7 +448,7 @@ export class AdminService {
   async getJobListingById(id: string, user: User) {
     try {
       await this.authService.verifyUser(user);
-      const jobListing = await this.prismaClient.jobListing.findUnique({
+      const jobListing = await this.prisma.jobListing.findUnique({
         where: { id },
         include: {
           jobApplications: {
@@ -505,14 +492,14 @@ export class AdminService {
         ...rest
       } = dto;
 
-      const foundUser = await this.prismaClient.user.findUnique({
+      const foundUser = await this.prisma.user.findUnique({
         where: { id: user.id },
       });
 
       if (!foundUser)
         throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-      const jobListing = await this.prismaClient.jobListing.findUnique({
+      const jobListing = await this.prisma.jobListing.findUnique({
         where: { id },
       });
 
@@ -522,7 +509,7 @@ export class AdminService {
       // if (foundUser.id !== jobListing.createdBy)
       //   throw new ForbiddenException(AUTH_ERROR_MSGS.FORBIDDEN);
 
-      const updateJobListing = await this.prismaClient.jobListing.update({
+      const updateJobListing = await this.prisma.jobListing.update({
         where: { id },
         data: {
           title,
@@ -555,7 +542,7 @@ export class AdminService {
       ...rest
     } = dto;
 
-    const createJobListing = await this.prismaClient.jobListing.create({
+    const createJobListing = await this.prisma.jobListing.create({
       data: {
         title,
         jobResponsibilities,
@@ -577,8 +564,8 @@ export class AdminService {
   }
 
   async adminDataAggregation(user: User) {
-    const prisma = this.prismaClient;
-    const foundUser = await this.prismaClient.user.findUnique({
+    const prisma = this.prisma;
+    const foundUser = await this.prisma.user.findUnique({
       where: { id: user.id },
       include: { role: true },
     });
@@ -636,7 +623,7 @@ export class AdminService {
     };
   }
 
-  async totalNumberOfUsers(prisma: PrismaClient, user: User) {
+  async totalNumberOfUsers(prisma: PrismaService, user: User) {
     const data = await prisma.user.count({
       where: { id: { not: user.id } },
       select: { id: true },
@@ -645,7 +632,7 @@ export class AdminService {
     return data?.id;
   }
 
-  async totalNumberOfActiveUsers(prisma: PrismaClient, user: User) {
+  async totalNumberOfActiveUsers(prisma: PrismaService, user: User) {
     const data = await prisma.user.aggregate({
       where: { status: USER_STATUS.ACTIVE, id: { not: user.id } },
       _count: true,
@@ -654,7 +641,7 @@ export class AdminService {
     return data._count;
   }
 
-  async totalNumberOfInactiveUsers(prisma: PrismaClient, user: User) {
+  async totalNumberOfInactiveUsers(prisma: PrismaService, user: User) {
     const data = await prisma.user.aggregate({
       where: {
         status: USER_STATUS.INACTIVE,
@@ -666,7 +653,7 @@ export class AdminService {
     return data._count;
   }
 
-  async totalNumberOfSuspendedUsers(prisma: PrismaClient, user: User) {
+  async totalNumberOfSuspendedUsers(prisma: PrismaService, user: User) {
     const rejectedJobListing = await prisma.user.aggregate({
       where: {
         status: USER_STATUS.SUSPENDED,
@@ -678,7 +665,7 @@ export class AdminService {
     return rejectedJobListing._count;
   }
 
-  async totalNumberOfJoblistings(prisma: PrismaClient) {
+  async totalNumberOfJoblistings(prisma: PrismaService) {
     const data = await prisma.jobListing.count({
       select: { id: true },
     });
@@ -686,7 +673,7 @@ export class AdminService {
     return data?.id;
   }
 
-  async totalNumberOfApprovedJobListings(prisma: PrismaClient) {
+  async totalNumberOfApprovedJobListings(prisma: PrismaService) {
     const data = await prisma.jobListing.aggregate({
       where: { status: JOB_LISTING_STATUS.APPROVED },
       _count: true,
@@ -695,7 +682,7 @@ export class AdminService {
     return data._count;
   }
 
-  async totalNumberOfPendingJobListings(prisma: PrismaClient) {
+  async totalNumberOfPendingJobListings(prisma: PrismaService) {
     const data = await prisma.jobListing.aggregate({
       where: {
         status: JOB_LISTING_STATUS.PENDING,
@@ -706,7 +693,7 @@ export class AdminService {
     return data._count;
   }
 
-  async totalNumberOfRejectedJobListings(prisma: PrismaClient) {
+  async totalNumberOfRejectedJobListings(prisma: PrismaService) {
     const data = await prisma.jobListing.aggregate({
       where: {
         status: JOB_LISTING_STATUS.REJECTED,
@@ -717,7 +704,7 @@ export class AdminService {
     return data._count;
   }
 
-  async totalNumberOfBlogs(prisma: PrismaClient) {
+  async totalNumberOfBlogs(prisma: PrismaService) {
     const data = await prisma.blog.count({
       select: { id: true },
     });
@@ -725,7 +712,7 @@ export class AdminService {
     return data?.id;
   }
 
-  async totalNumberOfApprovedBlogs(prisma: PrismaClient) {
+  async totalNumberOfApprovedBlogs(prisma: PrismaService) {
     const data = await prisma.blog.aggregate({
       where: { status: BLOG_STATUS.APPROVED },
       _count: true,
@@ -734,7 +721,7 @@ export class AdminService {
     return data._count;
   }
 
-  async totalNumberOfPendingBlogs(prisma: PrismaClient) {
+  async totalNumberOfPendingBlogs(prisma: PrismaService) {
     const data = await prisma.blog.aggregate({
       where: {
         status: BLOG_STATUS.PENDING,
@@ -744,7 +731,7 @@ export class AdminService {
     return data._count;
   }
 
-  async totalNumberOfRejectedBlogs(prisma: PrismaClient) {
+  async totalNumberOfRejectedBlogs(prisma: PrismaService) {
     const data = await prisma.blog.aggregate({
       where: {
         status: BLOG_STATUS.REJECTED,
@@ -756,7 +743,7 @@ export class AdminService {
   }
 
   async allJobApplications(user: User) {
-    const foundUser = await this.prismaClient.user.findUnique({
+    const foundUser = await this.prisma.user.findUnique({
       where: { id: user.id },
     });
 
@@ -764,15 +751,14 @@ export class AdminService {
       throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
     }
 
-    const jobApplications =
-      await this.prismaClient.jobListingApplications.findMany({
-        include: {
-          jobListing: true,
-          user: {
-            select: { profile: true },
-          },
+    const jobApplications = await this.prisma.jobListingApplications.findMany({
+      include: {
+        jobListing: true,
+        user: {
+          select: { profile: true },
         },
-      });
+      },
+    });
 
     if (jobApplications.length < 1)
       throw new NotFoundException(JOB_APPLICATION_ERORR.NO_JOBS_FOUND);
@@ -790,7 +776,7 @@ export class AdminService {
 
     const hashedPassword = await AppUtilities.hasher(newPassword);
 
-    const updatedUser = await this.prismaClient.user.update({
+    const updatedUser = await this.prisma.user.update({
       where: { email: dto.email },
       data: {
         password: hashedPassword,

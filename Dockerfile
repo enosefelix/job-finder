@@ -30,6 +30,13 @@ RUN yarn install --frozen-lockfile --production=false
 COPY --link ./src/common/prisma/schema.prisma .
 RUN npx prisma generate
 
+COPY --link ./src/common/prisma/schema.prisma ./src/common/prisma/schema.prisma
+RUN yarn db.generate
+
+RUN yarn upgrade @prisma/client
+RUN yarn upgrade prisma
+
+
 # Copy application code
 COPY --link . .
 

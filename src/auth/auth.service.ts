@@ -1,3 +1,15 @@
+import { CacheKeysEnums } from '@@/common/cache/cache.enums';
+import { TEMPLATE } from '@@/mailer/interfaces';
+import { MessagingService } from '@@/messaging/messaging.service';
+import { MessagingQueueProducer } from '@@/messaging/queue/producer';
+import { CacheService } from '@@common/cache/cache.service';
+import {
+  AUTH_ERROR_MSGS,
+  ROLE_TYPE,
+  USER_STATUS,
+} from '@@common/interfaces/index';
+import { PrismaService } from '@@common/prisma/prisma.service';
+import { MailerService } from '@@mailer/mailer.service';
 import {
   BadRequestException,
   ConflictException,
@@ -6,36 +18,23 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { PrismaService } from '@@common/prisma/prisma.service';
-import { LoginDto } from './dto/login.dto';
 import { ConfigService } from '@nestjs/config';
-import { JwtPayload } from './payload/jwt.payload.interface';
 import { JwtService } from '@nestjs/jwt';
-import {
-  AUTH_ERROR_MSGS,
-  ROLE_TYPE,
-  USER_STATUS,
-} from '@@common/interfaces/index';
-import { SendResetLinkDto } from './dto/send-reset-link.dto';
+import { Prisma, User } from '@prisma/client';
+import { CookieOptions, Response } from 'express';
 import moment from 'moment';
 import { AppUtilities } from '../app.utilities';
-import { SignupDto } from './dto/signup.dto';
-import { Prisma, User } from '@prisma/client';
-import { MailerService } from '@@mailer/mailer.service';
-import { UpdatePasswordDto } from './dto/updatePassword.dto';
-import { CacheService } from '@@common/cache/cache.service';
-import { ResetPasswordDto } from './dto/reset-password.dto';
-import { CacheKeysEnums } from '@@/common/cache/cache.enums';
 import { GoogleAuthDto } from './dto/google-auth.dto';
+import { LoginDto } from './dto/login.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { SendResetLinkDto } from './dto/send-reset-link.dto';
+import { SignupDto } from './dto/signup.dto';
+import { UpdatePasswordDto } from './dto/updatePassword.dto';
 import { GoogleStrategy } from './google.strategy';
-import { TEMPLATE } from '@@/mailer/interfaces';
-import { PrismaClientManager } from '@@/common/database/prisma-client-manager';
-import { CookieOptions, Response } from 'express';
-import { MessagingService } from '@@/messaging/messaging.service';
+import { JwtPayload } from './payload/jwt.payload.interface';
 
 @Injectable()
 export class AuthService {
-  private prismaClient;
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
@@ -43,11 +42,9 @@ export class AuthService {
     private mailerService: MailerService,
     private cacheService: CacheService,
     private googleStrategy: GoogleStrategy,
-    private prismaClientManager: PrismaClientManager,
     private messagingService: MessagingService,
-  ) {
-    this.prismaClient = this.prismaClientManager.getPrismaClient();
-  }
+    private messagingQueueProducer: MessagingQueueProducer,
+  ) {}
 
   async signup(signupDto: SignupDto): Promise<any> {
     try {
@@ -55,7 +52,7 @@ export class AuthService {
       let { email, password, firstName, lastName, confirmPassword } = signupDto;
       email = email.toLowerCase();
 
-      const findUser = await this.prismaClient.user.findUnique({
+      const findUser = await this.prisma.user.findUnique({
         where: { email },
       });
 
@@ -72,13 +69,13 @@ export class AuthService {
 
       const hashedPassword = await AppUtilities.hasher(password);
 
-      const role = await this.prismaClient.role.findFirst({
+      const role = await this.prisma.role.findFirst({
         where: { code: ROLE_TYPE.USER },
       });
 
       if (!role) throw new NotFoundException('Roles not setup');
 
-      const user = await this.prismaClient.user.create({
+      const user = await this.prisma.user.create({
         data: {
           email,
           password: hashedPassword,
@@ -94,7 +91,7 @@ export class AuthService {
         include: { profile: true },
       });
 
-      await this.prismaClient.user.update({
+      await this.prisma.user.update({
         where: { email: email.toLowerCase() },
         data: {
           profileId: user.profile.id,
@@ -124,22 +121,33 @@ export class AuthService {
       // eslint-disable-next-line prefer-const
       let { email, password } = loginDto;
       email = email.toLowerCase();
-      const user = await this.prismaClient.user.findFirst({
+      const user = await this.prisma.user.findFirst({
         where: {
           email: {
             equals: email,
             mode: 'insensitive',
           },
         },
-        include: { role: true, profile: true },
+        include: {
+          role: {
+            select: {
+              code: true,
+            },
+          },
+          profile: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
       });
 
       if (!user || user.role.code !== roleType)
         throw new UnauthorizedException(AUTH_ERROR_MSGS.CREDENTIALS_DONT_MATCH);
-
       if (user.googleId)
         throw new ConflictException(AUTH_ERROR_MSGS.GOOGLE_ALREDY_EXISTS);
-
       if (user.status === USER_STATUS.SUSPENDED) {
         throw new UnauthorizedException(AUTH_ERROR_MSGS.SUSPENDED_ACCOUNT_USER);
       }
@@ -147,23 +155,30 @@ export class AuthService {
       if (!(await AppUtilities.validator(password, user.password)))
         throw new UnauthorizedException(AUTH_ERROR_MSGS.INVALID_CREDENTIALS);
 
-      const jwtPayload: JwtPayload = { email: user.email, userId: user.id };
-      const accessToken: string = await this.jwtService.sign(jwtPayload);
+      const jwtPayload: JwtPayload = {
+        email,
+        userId: user.id,
+        role: user.role.code,
+      };
 
-      const refreshToken: string = await this.jwtService.sign(jwtPayload, {
+      const accessToken: string = this.jwtService.sign(jwtPayload);
+      const refreshToken: string = this.jwtService.sign(jwtPayload, {
         secret: this.configService.get('JWT_SECRET'),
         expiresIn: this.configService.get('JWT_EXPIRES'),
       });
 
       const currentDate = moment().toISOString();
 
-      const updatedUser = await this.prismaClient.user.update({
+      const updatedUser = await this.prisma.user.update({
         where: { email: email.toLowerCase() },
         data: {
           lastLogin: currentDate,
           lastLoginIp: ip,
         },
-        include: { profile: { select: { firstName: true, lastName: true } } },
+        include: {
+          profile: { select: { firstName: true, lastName: true } },
+          role: true,
+        },
       });
 
       await this.cacheService.set(
@@ -172,18 +187,21 @@ export class AuthService {
         parseInt(process.env.JWT_EXPIRES),
       );
 
-      const properties = AppUtilities.extractProperties(updatedUser);
-
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [, , sessionId] = accessToken.split('.');
       this.setCookies(accessToken, response);
 
-      const { rest } = properties;
+      // strip out the password before returning the user
+      const pwd = 'password';
+      // eslint-disable-next-line
+      const { [pwd]: _, ...usr } = updatedUser;
 
       return {
-        accessToken,
+        token: accessToken,
         refreshToken,
         user: {
-          ...rest,
+          ...usr,
+          role: { ...usr.role },
         },
       };
     } catch (e) {
@@ -220,9 +238,9 @@ export class AuthService {
     try {
       const { email } = forgotPassDto;
 
-      const foundUser = await this.prismaClient.user.findFirst({
+      const foundUser = await this.prisma.user.findFirst({
         where: { email },
-        include: { role: true },
+        include: { profile: true, role: true },
       });
 
       if (!foundUser || foundUser.role.code !== roleType)
@@ -249,10 +267,10 @@ export class AuthService {
           throw new BadRequestException('Invalid role type');
       }
 
-      const sendMail = await this.messagingService.sendUpdateEmail(
-        email,
-        template,
-      );
+      const sendMail = await this.messagingQueueProducer.queueResetTokenEmail({
+        user: foundUser,
+        templateName: template,
+      });
 
       return sendMail;
     } catch (e) {
@@ -264,7 +282,6 @@ export class AuthService {
   async resetPassword(
     requestId: string,
     resetPasswordDto: ResetPasswordDto,
-    roleType?: ROLE_TYPE,
   ): Promise<any> {
     const tokenData = await this.cacheService.get(
       CacheKeysEnums.REQUESTS + requestId,
@@ -273,9 +290,6 @@ export class AuthService {
     if (!tokenData) {
       throw new BadRequestException(AUTH_ERROR_MSGS.EXPIRED_LINK);
     }
-
-    if (roleType && roleType === ROLE_TYPE.ADMIN)
-      throw new UnauthorizedException(AUTH_ERROR_MSGS.FORBIDDEN);
 
     const { newPassword, confirmNewPassword } = resetPasswordDto;
 
@@ -292,7 +306,7 @@ export class AuthService {
       },
     };
 
-    const updatedUser = await this.prismaClient.user.update(dto);
+    const updatedUser = await this.prisma.user.update(dto);
 
     await this.cacheService.remove(CacheKeysEnums.REQUESTS + requestId);
     return updatedUser;
@@ -301,19 +315,15 @@ export class AuthService {
   async updatePassword(dto: UpdatePasswordDto, user: User): Promise<any> {
     try {
       const { oldPassword, newPassword, confirmNewPassword } = dto;
-      const foundUser = await this.prismaClient.user.findUnique({
-        where: { id: user.id },
-      });
 
-      if (foundUser.googleId)
+      if (user.googleId)
         throw new NotAcceptableException(
           AUTH_ERROR_MSGS.GOOGLE_CHANGE_PASS_ERROR,
         );
 
-      if (!foundUser)
-        throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
+      if (!user) throw new NotFoundException(AUTH_ERROR_MSGS.USER_NOT_FOUND);
 
-      if (!(await AppUtilities.validator(oldPassword, foundUser.password)))
+      if (!(await AppUtilities.validator(oldPassword, user.password)))
         throw new UnauthorizedException(AUTH_ERROR_MSGS.INVALID_OLD_PASSWORD);
 
       if (newPassword !== confirmNewPassword)
@@ -324,7 +334,7 @@ export class AuthService {
 
       const hashedPassword = await AppUtilities.hasher(newPassword);
 
-      const updatedPassword = await this.prismaClient.user.update({
+      const updatedPassword = await this.prisma.user.update({
         where: { id: user.id },
         data: {
           password: hashedPassword,
@@ -346,12 +356,12 @@ export class AuthService {
   }
 
   async findOrCreateUser(dto: GoogleAuthDto, accessToken: string) {
-    let user = await this.prismaClient.user.findUnique({
+    let user = await this.prisma.user.findUnique({
       where: { email: dto.email },
       include: { profile: true },
     });
 
-    const role = await this.prismaClient.role.findUnique({
+    const role = await this.prisma.role.findUnique({
       where: {
         code: ROLE_TYPE.USER,
       },
@@ -364,7 +374,7 @@ export class AuthService {
     password = await AppUtilities.hasher(password);
 
     if (!user) {
-      user = await this.prismaClient.user.create({
+      user = await this.prisma.user.create({
         data: {
           email: dto.email,
           password,
@@ -413,7 +423,7 @@ export class AuthService {
 
     const currentDate = moment().toISOString();
 
-    const updatedUser = await this.prismaClient.user.update({
+    const updatedUser = await this.prisma.user.update({
       where: { email: email.toLowerCase() },
       data: {
         lastLogin: currentDate,
@@ -442,7 +452,7 @@ export class AuthService {
 
       const currentDate = moment().toISOString();
 
-      const updatedUser = await this.prismaClient.user.update({
+      const updatedUser = await this.prisma.user.update({
         where: { googleId: user.googleId },
         data: {
           lastLogin: currentDate,
@@ -458,7 +468,7 @@ export class AuthService {
   }
 
   async verifyUser(user: User): Promise<User> {
-    const foundUser = this.prismaClient.user.findUnique({
+    const foundUser = this.prisma.user.findUnique({
       where: { id: user.id },
     });
 
@@ -467,13 +477,21 @@ export class AuthService {
     return foundUser;
   }
 
-  async generateAccessToken(user: User) {
-    const jwtPayload: JwtPayload = { email: user.email, userId: user.id };
+  async generateAccessToken(user: any) {
+    const jwtPayload: JwtPayload = {
+      email: user.email,
+      userId: user.id,
+      role: user.role.code,
+    };
     return await this.jwtService.signAsync(jwtPayload);
   }
 
-  async generateRefreshToken(user: User) {
-    const jwtPayload: JwtPayload = { email: user.email, userId: user.id };
+  async generateRefreshToken(user: any) {
+    const jwtPayload: JwtPayload = {
+      email: user.email,
+      userId: user.id,
+      role: user.role.code,
+    };
     return await this.jwtService.sign(jwtPayload, {
       secret: this.configService.get('JWT_SECRET'),
       expiresIn: this.configService.get('JWT_EXPIRES'),

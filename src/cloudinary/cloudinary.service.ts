@@ -12,9 +12,9 @@ export class CloudinaryService {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async uploadFile(
-    file,
+    file: any,
     resourceType = ResourceType.Auto,
-    request,
+    request: any,
     id: string,
     type: string,
   ) {

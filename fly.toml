@@ -7,6 +7,12 @@ app = 'job-finder'
 primary_region = 'ams'
 
 [build]
+  build_args = ["yarn db.generate"]
+
+[[jobs]]
+name = "db-generate"
+command = "yarn db.generate"
+
 
 [http_service]
   internal_port = 3000

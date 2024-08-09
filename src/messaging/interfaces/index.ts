@@ -1,3 +1,4 @@
+import { User } from '@prisma/client';
 import { SentMessageInfo } from 'nodemailer';
 
 export const QUEUE = 'messaging:';
@@ -83,7 +84,7 @@ export interface SmtpConfig {
 }
 
 export interface ISendEmail {
-  email: string;
+  user: User;
   templateName: TEMPLATE;
 }
 

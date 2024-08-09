@@ -71,7 +71,6 @@ export class AuthController {
   }
 
   @ApiResponseMeta({ message: 'Password Reset Successfully' })
-  @ApiBearerAuth()
   @Patch('pages/auth/reset-password/:requestId')
   async resetPassword(
     @Param('requestId') requestId: string,
@@ -80,8 +79,9 @@ export class AuthController {
     return this.authService.resetPassword(requestId, dto);
   }
 
-  @ApiResponseMeta({ message: 'Password Updated Successfully' })
+  @ApiBearerAuth()
   @UseGuards(AuthGuard())
+  @ApiResponseMeta({ message: 'Password Updated Successfully' })
   @Patch('auth/change-password')
   async updatePassword(
     @Body() dto: UpdatePasswordDto,

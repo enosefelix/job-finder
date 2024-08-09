@@ -9,7 +9,7 @@ import { AdminModule } from './admin/admin.module';
 import { MailerModule } from './mailer/mailer.module';
 import { MailerModule as NestMailerModule } from '@nestjs-modules/mailer';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import { CacheModule as NestCacheModule } from '@nestjs/cache-manager';
 import { CacheService } from './common/cache/cache.service';
@@ -29,7 +29,10 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { ConvertModule } from './convert/convert.module';
 import { DatabaseModule } from './common/database/database.module';
 import { MessagingModule } from './messaging/messaging.module';
+import { BullModule } from '@nestjs/bull';
+import { QUEUE } from './messaging/interfaces';
 
+@Global()
 @Module({
   imports: [
     DatabaseModule,
@@ -46,6 +49,14 @@ import { MessagingModule } from './messaging/messaging.module';
     AdminModule,
     MailerModule,
     CloudinaryModule,
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        prefix: `${config.get('environment')}.${config.get('app.name')}`,
+        redis: config.get('redis'),
+      }),
+    }),
+    BullModule.registerQueue({ name: QUEUE }),
     NestCacheModule.registerAsync({
       isGlobal: true,
       imports: [ConfigModule],
@@ -108,6 +119,6 @@ import { MessagingModule } from './messaging/messaging.module';
       useClass: ThrottlerGuard,
     },
   ],
-  exports: [DatabaseModule],
+  exports: [DatabaseModule, BullModule],
 })
 export class AppModule {}
